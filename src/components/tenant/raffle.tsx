@@ -52,6 +52,40 @@ export function Raffle() {
     setTicketCount(prev => Math.max(raffle.minNumbers, prev - 1));
   };
 
+  type MysteryPrize = {
+    id: string;
+    title: string;
+    description: string | null;
+    remaining: number;
+    totalAmount: number;
+  };
+
+  const [prizes, setPrizes] = useState<MysteryPrize[]>([]);
+
+  useEffect(() => {
+    async function fetchPrizes() {
+      if (!raffle?.id) return;
+
+      try {
+        const res = await fetch(`/api/mystery-box/${raffle.id}`);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        setPrizes(data.prizes ?? []);
+      } catch (e) {
+        console.error("Failed to fetch mystery prizes", e);
+      }
+    }
+
+    fetchPrizes();
+  }, [raffle?.id]);
+
+  const mysteryBoxRules = [
+    { boxes: 1, minTickets: 400 },
+    { boxes: 2, minTickets: 600 },
+    { boxes: 6, minTickets: 1200 },
+  ];
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -207,20 +241,19 @@ export function Raffle() {
         <p className="text-sm text-zinc-300">Ganhe caixas ao comprar em grandes quantidades e concorra a prêmios instantâneos!</p>
 
         <div className="flex gap-4">
-          <div className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-slate-800/40 rounded-lg p-4">
-            <span className="text-sm font-mono uppercase text-zinc-300">1 caixa</span>
-            <span className="text-xs font-mono uppercase text-zinc-500">400 bilhetes</span>
-          </div>
-
-          <div className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-slate-800/40 rounded-lg p-4">
-            <span className="text-sm font-mono uppercase text-zinc-300">2 caixas</span>
-            <span className="text-xs font-mono uppercase text-zinc-500">600 bilhetes</span>
-          </div>
-
-          <div className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-slate-800/40 rounded-lg p-4">
-            <span className="text-sm font-mono uppercase text-zinc-300">6 caixas</span>
-            <span className="text-xs font-mono uppercase text-zinc-500">1200 bilhetes</span>
-          </div>
+          {mysteryBoxRules.map((rule) => (
+            <div
+              key={`${rule.boxes}-${rule.minTickets}`}
+              className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-slate-800/40 rounded-lg p-4"
+            >
+              <span className="text-sm font-mono uppercase text-zinc-300">
+                {rule.boxes} {rule.boxes === 1 ? "caixa" : "caixas"}
+              </span>
+              <span className="text-xs font-mono uppercase text-zinc-500">
+                {rule.minTickets} bilhetes
+              </span>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -232,12 +265,34 @@ export function Raffle() {
             <Award size={16} className="mr-2 text-emerald-400" />
             <h2 className="text-lg font-mono text-emerald-400 uppercase">Prêmios das Caixas</h2>
           </div>
-          <span className="text-xs font-mono uppercase text-zinc-500">0 Disponíveis</span>
+          <span className="text-xs font-mono uppercase text-zinc-500">
+            {prizes.length} disponíveis
+          </span>
         </div>
 
-        <div className="flex items-center justify-between border border-white/5 bg-slate-800/40 rounded-lg p-4">
-
-        </div>
+        {prizes.length === 0 ? (
+          <p className="text-xs text-zinc-500">Nenhum prêmio disponível no momento.</p>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {prizes.map((prize) => (
+              <div
+                key={prize.id}
+                className="flex items-center justify-between border border-white/5 bg-slate-800/40 rounded-lg p-4"
+              >
+                <div className="flex flex-col">
+                  <span className="text-sm font-mono uppercase text-zinc-200">{prize.title}</span>
+                  {prize.description ? (
+                    <span className="text-xs text-zinc-500">{prize.description}</span>
+                  ) : null}
+                </div>
+                <div className="text-right">
+                  <span className="block text-xs uppercase text-zinc-500">Restam</span>
+                  <span className="text-sm font-bold text-emerald-400">{prize.remaining}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Bilheteria */}

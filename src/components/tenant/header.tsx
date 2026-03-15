@@ -20,22 +20,29 @@ export function Header() {
 
       className="top-0 z-40 p-4"
     >
-      <div className="mx-auto flex w-full max-w-2xl justify-between rounded-full border border-slate-500/5 bg-slate-800/40 px-4 py-3 shadow-lg backdrop-blur-xl">
-        <Link href="/" className="flex items-center gap-2">
+      <div className="mx-auto flex w-full max-w-2xl items-center justify-between rounded-full border border-slate-500/5 bg-slate-800/40 px-4 py-3 shadow-lg backdrop-blur-xl">
+        <motion.a
+          href="/"
+          whileHover={{ scale: 1.1 }}
+          style={{ display: "inline-block" }}
+        >
           <Image
             src={`${tenant?.logoUrl || '/incherry_logo.svg'}`}
             alt={tenant?.name ? `${tenant.name} Logo` : "InCherry Logo"}
             width={32}
             height={32}
           />
-        </Link>
-
-        {/* <h1 className="text-2xl font-bold text-white">InCherry</h1> */}
+        </motion.a>
 
         <div className="flex items-center gap-2">
-          <Link href="/" className="text-sm text-gray-300 hover:text-white" aria-label="Ver todas as rifas">
+          <motion.a
+            href="/"
+            whileHover={{ scale: 1.1 }}
+            style={{ display: "inline-block" }}
+            className="text-sm text-gray-300 hover:text-white"
+          >
             <Ticket size={16} />
-          </Link>
+          </motion.a>
 
           <button className="flex items-center justify-center text-stone-400">
             <MoreVertical size={12} />

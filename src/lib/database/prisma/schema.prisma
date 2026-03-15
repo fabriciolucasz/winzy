@@ -6,282 +6,277 @@ datasource db {
   provider = "postgresql"
 }
 
-// ==========================================
-// 1. GESTÃO DO SAAS (DONOS DE RIFAS)
-// ==========================================
+// --- NÚCLEO DE USUÁRIOS ---
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String // Para login de admin
-  phone     String?  @unique
-  cpf       String?  @unique
-  avatarUrl String?
-  role      UserRole @default(USER)
-
-  tenants Tenant[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                  String         @id
+  email               String         @unique
+  password            String
+  name                String
+  phone               String
+  cpf                 String         @unique
+  profile             Profile?
+  ownedTenants        Tenant[]       @relation("OwnerTenants")
+  memberTenants       TenantMember[]
+  sentMemberInvites   TenantMember[] @relation("InviteRelation")
+  sentExternalInvites TenantInvite[] @relation("InviteRelation")
+  createdAt           DateTime       @default(now())
 
   @@map("users")
 }
 
+model Profile {
+  id       String  @id @default(uuid())
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String  @unique
+  nickname String?
+  avatar   String?
+  banner   String?
+  slug     String? @unique
+
+  @@map("profiles")
+}
+
+// --- ESTRUTURA SAAS (TENANT) ---
+
 model Tenant {
-  id      String @id @default(cuid())
-  ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id])
+  id        String  @id @default(uuid())
+  owner     User    @relation("OwnerTenants", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId   String
+  name      String
+  slug      String  @unique
+  logo      String?
+  favicon   String?
+  instagram String?
+  telegram  String?
 
-  name            String
-  slug            String  @unique
-  customDomain    String? @unique
-  logoUrl         String?
-  faviconUrl      String?
-  metaTitle       String?
-  metaDescription String?
-  instagramUrl    String?
-  telegramUrl     String?
-  supportUrl      String?
-  isActive        Boolean @default(true)
-  homeView        String  @default("RAFFLE") // RAFFLE (mostra rifa principal) ou LIST (mostra lista de rifas)
-
-  // Mercado Pago — split de pagamentos (OAuth do tenant)
-  mpAccessToken String? // Access token MP do tenant (OAuth)
-  mpRecipientId String? // ID do recebedor no MP (collector_id)
-
-  raffles           Raffle[]
-  clients           Client[]
-  payments          Payment[]
-  verificationCodes VerificationCode[]
+  connections Connection[]
+  members     TenantMember[]
+  invites     TenantInvite[]
+  clients     Client[]
+  raffles     Raffle[]
+  awards      Award[]
+  tickets     Ticket[]
+  payments    Payment[]
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
   @@map("tenants")
 }
 
-// ==========================================
-// 2. AUTENTICAÇÃO OTP
-// ==========================================
+model Connection {
+  id                String           @id @default(cuid())
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId          String
+  provider          String
+  providerAccountId String
+  publicEmail       String?
+  accessToken       String           @db.Text
+  refreshToken      String?          @db.Text
+  expiresAt         DateTime?
+  status            ConnectionStatus @default(ACTIVE)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
 
-model VerificationCode {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-
-  email     String
-  code      String
-  expiresAt DateTime
-
-  createdAt DateTime @default(now())
-
-  @@index([tenantId, email])
-  @@map("verification_codes")
+  @@unique([tenantId, provider])
+  @@map("connections")
 }
 
-// ==========================================
-// 3. CLIENTES FINAIS (COMPRADORES)
-// ==========================================
+// --- GESTÃO DE TIME ---
+
+model TenantMember {
+  id          String     @id @default(uuid())
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId    String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  role        TenantRole
+  invitedBy   User?      @relation("InviteRelation", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedById String?
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, role])
+  @@map("tenant_members")
+}
+
+model TenantInvite {
+  id          String     @id @default(uuid())
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId    String
+  email       String
+  role        TenantRole
+  invitedBy   User?      @relation("InviteRelation", fields: [invitedById], references: [id], onDelete: SetNull)
+  invitedById String?
+  acceptedAt  DateTime?
+  canceledAt  DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@map("tenant_invites")
+}
+
+// --- VENDAS E SORTEIOS ---
 
 model Client {
   id       String @id @default(cuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  name     String
+  cpf      String
+  email    String
+  phone    String
 
-  name  String @db.VarChar(250)
-  cpf   String @db.VarChar(20)
-  phone String @db.VarChar(20)
-  email String @db.VarChar(250)
-
+  profile  ClientProfile?
   payments Payment[]
   tickets  Ticket[]
-
-  wonRaffles       Raffle[]             @relation("RaffleWinner")
-  wonMysteryPrizes MysteryPrizeWinner[]
+  awards   Award[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, cpf])
-  @@index([cpf])
+  @@unique([tenantId, email])
   @@map("clients")
 }
 
-// ==========================================
-// 4. CAMPANHAS E BILHETES
-// ==========================================
+model ClientProfile {
+  id       String  @id @default(uuid())
+  client   Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String  @unique
+  nickname String?
+  avatar   String?
+  banner   String?
+  slug     String? @unique
+
+  @@map("client_profiles")
+}
 
 model Raffle {
-  id       String @id @default(cuid())
-  tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
+  id          String  @id @default(uuid())
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId    String
+  name        String
+  slug        String
+  description String? @db.Text
+  banner      String?
+  pixValue    Decimal @db.Decimal(10, 2)
+  priceTicket Decimal @db.Decimal(10, 2)
+  minTickets  Int     @default(1)
+  maxTickets  Int
 
-  slug         String
-  title        String
-  description  String?      @db.Text
-  bannerUrl    String?
-  price        Decimal      @db.Decimal(10, 2)
-  minNumbers   Int          @default(1)
-  totalNumbers Int
-  status       RaffleStatus @default(DRAFT)
-  drawDate     DateTime?
-
-  // Contador atômico para alocação eficiente de tickets (zero colisões)
-  // nextTicketNumber começa em 1 e vai sendo incrementado atomicamente
-  nextTicketNumber Int @default(1)
-
-  // Ganhador Principal
-  winnerId String?
-  winner   Client? @relation("RaffleWinner", fields: [winnerId], references: [id])
-
-  // Mystery Box Config (armazenado como JSON pelo dono da rifa)
-  // Ex: { rules: [{minTickets:400,boxes:1},{minTickets:600,boxes:2}], winProbability: 0.1 }
-  mysteryBoxEnabled Boolean @default(false)
-  mysteryBoxConfig  Json?
-
-  // Text for the PIX span in the UI
-  pixText String?
-
-  payments      Payment[]
-  tickets       Ticket[]
-  mysteryPrizes MysteryPrize[]
+  awards  Award[]
+  tickets Ticket[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, slug])
+  @@index([tenantId, createdAt])
   @@map("raffles")
 }
 
 model Ticket {
-  id        String  @id @default(cuid())
+  id        String   @id @default(cuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId  String
+  raffle    Raffle   @relation(fields: [raffleId], references: [id], onDelete: Cascade)
   raffleId  String
-  raffle    Raffle  @relation(fields: [raffleId], references: [id])
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientId  String
-  client    Client  @relation(fields: [clientId], references: [id])
-  paymentId String
-  payment   Payment @relation(fields: [paymentId], references: [id])
+  number    Int
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentId String?
 
-  // Inteiro para máxima eficiência em rifas com até 1M+ números
-  number          Int
-  numberFormatted String @db.VarChar(6)
-
+  awards    Award[]
   createdAt DateTime @default(now())
 
   @@unique([raffleId, number])
-  @@unique([raffleId, numberFormatted])
-  @@index([clientId])
-  @@index([paymentId])
+  @@index([tenantId, raffleId])
   @@map("tickets")
 }
 
-// ==========================================
-// 5. CAIXA MISTERIOSA
-// ==========================================
-
-model MysteryPrize {
-  id       String @id @default(cuid())
-  raffleId String
-  raffle   Raffle @relation(fields: [raffleId], references: [id], onDelete: Cascade)
-
-  title       String
-  description String?
-
-  totalAmount Int
-  remaining   Int
-
-  winners MysteryPrizeWinner[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("mystery_prizes")
-}
-
-model MysteryPrizeWinner {
-  id String @id @default(cuid())
-
-  prizeId String
-  prize   MysteryPrize @relation(fields: [prizeId], references: [id])
-
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id])
-
-  paymentId String
-  payment   Payment @relation(fields: [paymentId], references: [id])
-
-  // Índice do box (0, 1, 2...) dentro do pagamento
-  boxIndex Int @default(0)
-
-  // Número do ticket que destravou (inteiro)
-  ticketNumber Int
-
-  awardedAt DateTime @default(now())
-
-  @@map("mystery_prize_winners")
-}
-
-// ==========================================
-// 6. FINANCEIRO
-// ==========================================
-
 model Payment {
-  id           String        @id @default(cuid())
-  externalId   String?       @unique // ID do Mercado Pago
-  status       PaymentStatus @default(PENDING)
-  amount       Decimal       @db.Decimal(10, 2)
-  ticketCount  Int // Quantos bilhetes foram comprados neste pedido
-  qrCode       String?       @db.Text
-  qrCodeBase64 String?       @db.Text
-
-  // Caixas Misteriosas concedidas neste pedido (calculado no webhook)
-  boxesGranted Int @default(0)
-
-  // Metadata adicional para armazenar informações do Mercado Pago e split payment
-  metadata Json?
-
-  // Campo para armazenar quando o pagamento foi processado
-  processedAt DateTime?
-
+  id       String @id @default(cuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tenantId String
-  tenant   Tenant @relation(fields: [tenantId], references: [id])
-  raffleId String
-  raffle   Raffle @relation(fields: [raffleId], references: [id])
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
   clientId String
-  client   Client @relation(fields: [clientId], references: [id])
 
-  tickets    Ticket[]
-  mysteryWon MysteryPrizeWinner[]
+  externalId String? @unique
+  amount     Int
+  totalValue Decimal @db.Decimal(10, 2)
 
+  method PaymentMethod @default(PIX)
+  status PaymentStatus @default(PENDING)
+
+  tickets   Ticket[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([externalId])
-  @@index([tenantId])
-  @@index([clientId])
+  @@index([tenantId, status])
   @@map("payments")
 }
 
-// ==========================================
-// ENUMS
-// ==========================================
+model Award {
+  id       String @id @default(cuid())
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String
 
-enum UserRole {
-  USER
-  ADMIN
+  name         String
+  type         AwardType
+  claimedType  AwardClaimType @default(PRODUCT)
+  awardedValue Decimal?       @db.Decimal(10, 2)
+
+  raffle   Raffle? @relation(fields: [raffleId], references: [id], onDelete: SetNull)
+  raffleId String?
+  ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  ticketId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@map("awards")
 }
 
-enum RaffleStatus {
-  DRAFT
+// --- ENUMS ---
+
+enum ConnectionStatus {
   ACTIVE
-  FINISHED
-  CANCELLED
+  EXPIRED
+  REVOKED
+}
+
+enum TenantRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum AwardType {
+  RAFFLE_WINNER
+  INSTANT_PRIZE
+  CONSOLATION_PRIZE
+}
+
+enum AwardClaimType {
+  PRODUCT
+  PIX
+}
+
+enum PaymentMethod {
+  CREDIT_CARD
+  DEBIT_CARD
+  PIX
+  BOLETO
 }
 
 enum PaymentStatus {
   PENDING
-  APPROVED
-  CANCELLED
-  REFUNDED
+  COMPLETED
+  FAILED
+  CANCELED
 }

@@ -4,9 +4,24 @@ import { useApp } from "@/contexts";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Award, BadgeCheck, CircleHelp, Gift, Minus, Plus, ShoppingBag, Ticket, Trophy, Users } from "lucide-react";
+import { Award, BadgeCheck, CircleHelp, Gift, Instagram, MessageCircle, Minus, Plus, ShoppingBag, Ticket, Trophy, Users } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
+
+type RankingEntry = {
+  position: number;
+  name: string;
+  tickets: number;
+  color?: string;
+};
+
+type MysteryPrize = {
+  id: string;
+  title: string;
+  description: string | null;
+  remaining: number;
+  totalAmount: number;
+};
 
 export function Raffle() {
   const { tenant, raffle, user, ticketCount, setTicketCount } = useApp();
@@ -20,7 +35,17 @@ export function Raffle() {
       .replace(/n-\s/g, "\n- ");
   }, [raffle?.description]);
 
-  const [rankingList, setRankingList] = useState<any[]>([]);
+  const [rankingList, setRankingList] = useState<RankingEntry[]>([]);
+  const [prizes, setPrizes] = useState<MysteryPrize[]>([]);
+  const [isOwnerCardOpen, setIsOwnerCardOpen] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [checkoutInfo, setCheckoutInfo] = useState<{
+    paymentId: string;
+    totalValue: number;
+    qrCode: string;
+    qrCodeBase64: string;
+  } | null>(null);
 
   useEffect(() => {
     async function fetchRanking() {
@@ -38,8 +63,6 @@ export function Raffle() {
     fetchRanking();
   }, [tenant?.slug]);
 
-  if (!raffle) return null;
-
   const handleQuantitySelect = (qty: number) => {
     setTicketCount(prev => prev + qty);
   };
@@ -51,16 +74,6 @@ export function Raffle() {
   const handleDecrease = () => {
     setTicketCount(prev => Math.max(raffle.minNumbers, prev - 1));
   };
-
-  type MysteryPrize = {
-    id: string;
-    title: string;
-    description: string | null;
-    remaining: number;
-    totalAmount: number;
-  };
-
-  const [prizes, setPrizes] = useState<MysteryPrize[]>([]);
 
   useEffect(() => {
     async function fetchPrizes() {
@@ -86,6 +99,58 @@ export function Raffle() {
     { boxes: 6, minTickets: 1200 },
   ];
 
+  if (!raffle) return null;
+
+  async function handlePixPayment() {
+    if (!raffle || !tenant) return;
+
+    setCheckoutError(null);
+    setCheckoutInfo(null);
+
+    if (!user?.name || !user?.email || !user?.cpf || !user?.phone) {
+      setCheckoutError("Para pagar com PIX, complete seu cadastro com nome, email, CPF e telefone.");
+      return;
+    }
+
+    setIsPaying(true);
+
+    try {
+      const response = await fetch("/api/payments/pix", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          raffleId: raffle.id,
+          ticketCount,
+          totalValue: Number((Number(raffle.price) * ticketCount).toFixed(2)),
+          customer: {
+            name: user.name,
+            email: user.email,
+            cpf: user.cpf,
+            phone: user.phone,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        setCheckoutError(data.error || "Nao foi possivel gerar o PIX.");
+        return;
+      }
+
+      setCheckoutInfo({
+        paymentId: data.payment.id,
+        totalValue: Number(data.payment.totalValue),
+        qrCode: data.payment.qrCode || "",
+        qrCodeBase64: data.payment.qrCodeBase64 || "",
+      });
+    } catch {
+      setCheckoutError("Erro de conexao ao gerar pagamento PIX.");
+    } finally {
+      setIsPaying(false);
+    }
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -95,29 +160,74 @@ export function Raffle() {
     >
       {/* Detalhes da Rifa */}
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-6 shadow-lg backdrop-blur-xl">
-        <div className="flex items-center gap-4">
-          <Avatar size="lg">
-            {tenant?.owner?.avatarUrl ? (
-              <>
-                <AvatarImage
-                  src={tenant.owner.avatarUrl}
-                  alt={tenant.owner.name}
-                />
-              </>
-            ) : (
-              <AvatarFallback className="bg-slate-900/50">{tenant?.owner?.name.charAt(0).toUpperCase()}</AvatarFallback>
-            )}
-          </Avatar>
-          <div className="w-full flex flex-col">
-            <div className="flex items-center">
-              <span className="text-lg font-semibold text-white">{tenant?.owner?.name}</span>
-              <BadgeCheck size={16} className="ml-1 text-emerald-500" />
+        <div>
+          <button
+            type="button"
+            onClick={() => setIsOwnerCardOpen((prev) => !prev)}
+            className="flex w-full items-center gap-4 rounded-xl p-1 text-left transition-colors hover:bg-white/5"
+          >
+            <Avatar size="lg">
+              {tenant?.owner?.avatarUrl ? (
+                <>
+                  <AvatarImage
+                    src={tenant.owner.avatarUrl}
+                    alt={tenant.owner.name}
+                  />
+                </>
+              ) : (
+                <AvatarFallback className="bg-slate-900/50">{tenant?.owner?.name.charAt(0).toUpperCase()}</AvatarFallback>
+              )}
+            </Avatar>
+            <div className="w-full flex flex-col">
+              <div className="flex items-center">
+                <span className="text-lg font-semibold text-white">{tenant?.owner?.name}</span>
+                <BadgeCheck size={16} className="ml-1 text-emerald-500" />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-300 uppercase font-mono font-semibold">{raffle?.title}</span>
+                <span className="text-xs text-gray-300 font-mono">ou {formatCurrency(Number(raffle?.pixText) || 0)} no PIX</span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-300 uppercase font-mono font-semibold">{raffle?.title}</span>
-              <span className="text-xs text-gray-300 font-mono">ou {formatCurrency(Number(raffle?.pixText) || 0)} no PIX</span>
+          </button>
+
+          {isOwnerCardOpen && (
+            <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-slate-900/55 p-3 text-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-400">Canais da organizacao</p>
+              {tenant?.instagramUrl && (
+                <a
+                  href={tenant.instagramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-slate-200 transition-colors hover:text-white"
+                >
+                  <Instagram size={14} /> Instagram
+                </a>
+              )}
+              {tenant?.telegramUrl && (
+                <a
+                  href={tenant.telegramUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-slate-200 transition-colors hover:text-white"
+                >
+                  <MessageCircle size={14} /> Telegram
+                </a>
+              )}
+              {tenant?.supportUrl && (
+                <a
+                  href={tenant.supportUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-slate-200 transition-colors hover:text-white"
+                >
+                  <MessageCircle size={14} /> Whatsapp/Suporte
+                </a>
+              )}
+              {!tenant?.instagramUrl && !tenant?.telegramUrl && !tenant?.supportUrl && (
+                <p className="text-xs text-slate-400">Nenhum canal de contato configurado ainda.</p>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         <div className="rounded-xl overflow-hidden">
@@ -162,7 +272,7 @@ export function Raffle() {
           </div>
         </div>
 
-        <p className="text-sm text-gray-300 whitespace-pre-line">
+        <p className="text-sm text-zinc-400 whitespace-pre-line">
           {formattedDescription}
         </p>
       </div>
@@ -357,10 +467,39 @@ export function Raffle() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          className="w-full items-center rounded-2xl bg-emerald-500 text-sm font-mono font-bold uppercase text-zinc-200 p-4 tracking-widest text-[#0B1120] shadow-[0_4px_24px_rgba(16,185,129,0.25)] transition-all hover:bg-emerald-400"
+          onClick={handlePixPayment}
+          disabled={isPaying}
+          className="w-full items-center rounded-2xl bg-emerald-500 p-4 text-sm font-mono font-bold uppercase tracking-widest text-[#0B1120] shadow-[0_4px_24px_rgba(16,185,129,0.25)] transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          Pagar com PIX
+          {isPaying ? "Gerando PIX..." : "Pagar com PIX"}
         </motion.button>
+
+        {checkoutError && (
+          <div className="rounded-xl border border-red-300/20 bg-red-500/10 px-3 py-2 text-sm text-red-200">
+            {checkoutError}
+          </div>
+        )}
+
+        {checkoutInfo && (
+          <div className="rounded-xl border border-emerald-300/20 bg-emerald-500/10 p-3">
+            <p className="text-xs uppercase text-emerald-300">PIX gerado</p>
+            <p className="mt-1 text-sm text-zinc-100">Pagamento: {checkoutInfo.paymentId}</p>
+            <p className="text-sm text-zinc-100">Total: {formatCurrency(checkoutInfo.totalValue)}</p>
+            {checkoutInfo.qrCodeBase64 ? (
+              <Image
+                src={`data:image/png;base64,${checkoutInfo.qrCodeBase64}`}
+                alt="QR Code PIX"
+                width={160}
+                height={160}
+                unoptimized
+                className="mt-3 h-40 w-40 rounded-lg border border-white/10 bg-white p-2"
+              />
+            ) : null}
+            {checkoutInfo.qrCode ? (
+              <p className="mt-3 break-all text-xs text-slate-200">{checkoutInfo.qrCode}</p>
+            ) : null}
+          </div>
+        )}
 
       </div>
     </motion.div >

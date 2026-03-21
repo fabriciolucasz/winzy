@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/database/prisma";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 type MercadoPagoPaymentLookupResponse = {
   id?: number;
@@ -229,7 +230,74 @@ function getNotificationPaymentId(request: NextRequest, body: unknown): string |
   return null;
 }
 
+function parseSignatureHeader(signatureHeader: string | null): { ts: string; v1: string } | null {
+  if (!signatureHeader) return null;
+
+  const parts = signatureHeader.split(",").map((part) => part.trim());
+  const values = new Map<string, string>();
+
+  for (const part of parts) {
+    const [key, value] = part.split("=", 2);
+    if (!key || !value) continue;
+    values.set(key.trim(), value.trim());
+  }
+
+  const ts = values.get("ts");
+  const v1 = values.get("v1");
+
+  if (!ts || !v1) return null;
+  return { ts, v1 };
+}
+
+function safeCompareHex(expectedHex: string, receivedHex: string): boolean {
+  const expectedBuffer = Buffer.from(expectedHex, "hex");
+  const receivedBuffer = Buffer.from(receivedHex, "hex");
+
+  if (expectedBuffer.length === 0 || receivedBuffer.length === 0) return false;
+  if (expectedBuffer.length !== receivedBuffer.length) return false;
+
+  return timingSafeEqual(expectedBuffer, receivedBuffer);
+}
+
+function buildWebhookManifest(args: { dataId: string; requestId: string; ts: string }): string {
+  return `id:${args.dataId};request-id:${args.requestId};ts:${args.ts};`;
+}
+
+function validateMercadoPagoWebhookSignature(request: NextRequest, body: unknown): boolean {
+  const secret = process.env.MP_WEBHOOK_SECRET || process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error("Webhook Mercado Pago rejeitado: MP_WEBHOOK_SECRET nao configurado.");
+    return false;
+  }
+
+  const signature = parseSignatureHeader(request.headers.get("x-signature"));
+  const requestId = request.headers.get("x-request-id");
+  const dataId = getNotificationPaymentId(request, body);
+
+  if (!signature || !requestId || !dataId) {
+    return false;
+  }
+
+  const normalizedDataId = dataId.toLowerCase();
+  const manifest = buildWebhookManifest({
+    dataId: normalizedDataId,
+    requestId,
+    ts: signature.ts,
+  });
+
+  const expectedSignature = createHmac("sha256", secret).update(manifest).digest("hex");
+  return safeCompareHex(expectedSignature, signature.v1.toLowerCase());
+}
+
 async function handleNotification(request: NextRequest, body: unknown) {
+  const isValidSignature = validateMercadoPagoWebhookSignature(request, body);
+  if (!isValidSignature) {
+    return NextResponse.json(
+      { success: false, error: "Assinatura do webhook invalida." },
+      { status: 401 },
+    );
+  }
+
   const paymentExternalId = getNotificationPaymentId(request, body);
 
   if (!paymentExternalId) {
@@ -249,7 +317,8 @@ export async function POST(request: NextRequest) {
   let body: unknown = null;
 
   try {
-    body = await request.json();
+    const rawBody = await request.text();
+    body = rawBody ? JSON.parse(rawBody) : null;
   } catch {
     body = null;
   }

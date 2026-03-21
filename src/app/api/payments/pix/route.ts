@@ -418,6 +418,10 @@ export async function POST(request: NextRequest) {
         totalValue: asCurrencyDecimal(expectedTotal),
         method: "PIX",
         status: "PENDING",
+        platformFeePercentage: feePercentage,
+        platformFeeValue: platformFeeValue,
+        sellerNetValue: sellerNetValue,
+        splitVerified: false,
       },
       select: {
         id: true,

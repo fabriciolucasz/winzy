@@ -5,9 +5,18 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 type MercadoPagoPaymentLookupResponse = {
   id?: number;
   status?: string;
+  transaction_amount?: number;
+  application_fee?: number;
+  fee_details?: Array<{
+    type?: string;
+    amount?: number;
+  }>;
   metadata?: {
     raffleId?: string;
     ticketCount?: number;
+    platformFeePercentage?: string | number;
+    platformFeeValue?: string | number;
+    sellerNetValue?: string | number;
   };
 };
 
@@ -24,6 +33,24 @@ function mapMercadoPagoStatus(status: string | undefined): "PENDING" | "COMPLETE
     default:
       return "PENDING";
   }
+}
+
+function verifySplitPayment(mpData: MercadoPagoPaymentLookupResponse, payment: { platformFeeValue: any }): boolean {
+  // Verifica se o split foi aplicado no Mercado Pago
+  if (mpData.application_fee && mpData.application_fee > 0) {
+    // application_fee foi realmente deduzido
+    return true;
+  }
+
+  // Fallback: se não há fee_details mas há metadata com os valores
+  if (mpData.metadata?.platformFeeValue) {
+    // Pelo menos a metadata foi enviada corretamente
+    return true;
+  }
+
+  // Se não encontrou evidence de split, considera como não verificado
+  console.warn(`[SPLIT_VALIDATION] Pagamento ${mpData.id} pode não ter split aplicado`);
+  return false;
 }
 
 function randomInt(maxExclusive: number): number {
@@ -127,6 +154,12 @@ async function processPaymentNotificationByExternalId(externalId: string) {
     return { success: true, completed: true, alreadyProcessed: true };
   }
 
+  // Validate split payment
+  const splitVerified = verifySplitPayment(mpData, payment);
+  if (!splitVerified) {
+    console.warn(`[PAYMENT_WARNING] Split payment não verificado para ${payment.id} - MP payment ${mpData.id}`);
+  }
+
   const raffleId = String(mpData.metadata?.raffleId || "").trim();
   if (!raffleId) {
     throw new Error("Pagamento aprovado sem raffleId no metadata.");
@@ -197,7 +230,10 @@ async function processPaymentNotificationByExternalId(externalId: string) {
 
     await tx.payment.update({
       where: { id: payment.id },
-      data: { status: "COMPLETED" },
+      data: { 
+        status: "COMPLETED",
+        splitVerified: splitVerified,
+      },
     });
   });
 

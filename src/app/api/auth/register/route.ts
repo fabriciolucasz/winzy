@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcrypt";
 import { sendVerificationEmail } from "@/lib/auth/email";
 import { generateToken, getCookieName } from "@/lib/auth/jwt";
+import { Prisma } from "@prisma/client";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +21,12 @@ export async function POST(request: NextRequest) {
 
     if (existingUser) {
       return new Response(JSON.stringify({ error: "Email já registrado" }), { status: 400 });
+    }
+
+    const existingCpf = await prisma.user.findUnique({ where: { cpf } });
+
+    if (existingCpf) {
+      return new Response(JSON.stringify({ error: "CPF já registrado" }), { status: 400 });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -68,6 +75,30 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error("Erro no registro:", error);
+
+    // Handle Prisma unique constraint violations
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
+        const field = (error.meta?.target as string[])?.[0] || 'campo';
+        if (field === 'email') {
+          return NextResponse.json(
+            { error: "Email já registrado" },
+            { status: 400 }
+          );
+        } else if (field === 'cpf') {
+          return NextResponse.json(
+            { error: "CPF já registrado" },
+            { status: 400 }
+          );
+        } else if (field === 'phone') {
+          return NextResponse.json(
+            { error: "Número de telefone já registrado" },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     return NextResponse.json(
       { error: "Erro interno do servidor" },
       { status: 500 }

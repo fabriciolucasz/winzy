@@ -25,7 +25,7 @@ export const onlyDigits = (value: string): string => {
  */
 export const formatCPFInput = (value: string): string => {
   const cleaned = onlyDigits(value);
-  
+
   // Formata enquanto digita
   if (cleaned.length <= 3) {
     return cleaned;
@@ -55,7 +55,7 @@ export const formatCPF = (cpf: string): string => {
  */
 export const formatPhoneInput = (value: string): string => {
   const cleaned = onlyDigits(value);
-  
+
   if (cleaned.length <= 2) {
     return cleaned.length > 0 ? `(${cleaned}` : '';
   } else if (cleaned.length <= 6) {

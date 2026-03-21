@@ -65,6 +65,11 @@ export async function GET() {
       instagram: tenant.instagram,
       telegram: tenant.telegram,
       supportUrl: tenant.supportUrl,
+      planName: tenant.planName,
+      planPriceMonthly: tenant.planPriceMonthly,
+      billingDay: tenant.billingDay,
+      nextBillingAt: tenant.nextBillingAt,
+      subscriptionStatus: tenant.subscriptionStatus,
       mercadoPago: {
         connected: tenant.connections.length > 0,
         accountId: tenant.connections[0]?.providerAccountId ?? null,
@@ -150,6 +155,11 @@ export async function PATCH(request: NextRequest) {
       instagram: updated.instagram,
       telegram: updated.telegram,
       supportUrl: updated.supportUrl,
+      planName: updated.planName,
+      planPriceMonthly: updated.planPriceMonthly,
+      billingDay: updated.billingDay,
+      nextBillingAt: updated.nextBillingAt,
+      subscriptionStatus: updated.subscriptionStatus,
     },
   });
 }

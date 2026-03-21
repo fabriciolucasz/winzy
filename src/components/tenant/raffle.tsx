@@ -29,6 +29,7 @@ type MysteryPrize = {
   id: string;
   title: string;
   description: string | null;
+  chance?: number;
   remaining: number;
   totalAmount: number;
 };
@@ -83,6 +84,13 @@ export function Raffle() {
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
   const [pixDialogMinimized, setPixDialogMinimized] = useState(false);
 
+  function getUnlockedBoxesByTickets(totalTickets: number): number {
+    if (totalTickets >= 1200) return 6;
+    if (totalTickets >= 600) return 2;
+    if (totalTickets >= 400) return 1;
+    return 0;
+  }
+
   useEffect(() => {
     async function fetchRanking() {
       if (!tenant?.slug) return;
@@ -112,21 +120,25 @@ export function Raffle() {
     setTicketCount((prev) => Math.max(raffle?.minNumbers ?? 1, prev - 1));
   };
 
-  useEffect(() => {
-    async function fetchPrizes() {
-      if (!raffle?.id) return;
+  async function fetchPrizes() {
+    if (!raffle?.id) return;
 
-      try {
-        const res = await fetch(`/api/mystery-box/${raffle.id}`);
-        if (!res.ok) return;
+    try {
+      const res = await fetch(`/api/mystery-box/${raffle.id}`, {
+        method: "GET",
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!res.ok) return;
 
-        const data = await res.json();
-        setPrizes(data.prizes ?? []);
-      } catch (e) {
-        console.error("Failed to fetch mystery prizes", e);
-      }
+      const data = await res.json();
+      setPrizes(data.prizes ?? []);
+    } catch (e) {
+      console.error("Failed to fetch mystery prizes", e);
     }
+  }
 
+  useEffect(() => {
     fetchPrizes();
   }, [raffle?.id]);
 
@@ -237,15 +249,15 @@ export function Raffle() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="py-4 flex flex-col gap-8"
+      className="flex flex-col gap-6 px-3 py-4 sm:gap-8 sm:px-0"
     >
       {/* Detalhes da Rifa */}
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-6 shadow-lg backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div>
           <button
             type="button"
             onClick={() => setIsOwnerCardOpen((prev) => !prev)}
-            className="flex w-full items-center gap-4 rounded-xl p-1 text-left transition-colors hover:bg-white/5"
+            className="flex w-full items-center gap-3 rounded-xl p-1 text-left transition-colors hover:bg-white/5 sm:gap-4"
           >
             <Avatar size="lg">
               {tenant?.owner?.avatarUrl ? (
@@ -264,7 +276,7 @@ export function Raffle() {
                 <span className="text-lg font-semibold text-white">{tenant?.owner?.name}</span>
                 <BadgeCheck size={16} className="ml-1 text-emerald-500" />
               </div>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm text-gray-300 uppercase font-mono font-semibold">{raffle?.title}</span>
                 <span className="text-xs text-gray-300 font-mono">ou {formatCurrency(Number(raffle?.pixText) || 0)} no PIX</span>
               </div>
@@ -311,7 +323,7 @@ export function Raffle() {
           )}
         </div>
 
-        <div className="rounded-xl overflow-hidden">
+        <div className="relative overflow-hidden rounded-xl">
           {raffle?.bannerUrl ? (
             <>
               <Image
@@ -326,7 +338,7 @@ export function Raffle() {
                 initial={{ x: -20, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ delay: 0.4 }}
-                className="absolute bottom-18 left-12 rounded-xl bg-[#11161d]/80 px-4 py-1.5 backdrop-blur-md flex flex-col items-center justify-center leading-tight shadow-xl"
+                className="absolute bottom-3 left-3 flex flex-col items-center justify-center rounded-xl bg-[#11161d]/80 px-3 py-1.5 leading-tight shadow-xl backdrop-blur-md sm:bottom-5 sm:left-5 sm:px-4"
               >
                 <span className="text-[7px] font-bold text-stone-400 uppercase tracking-widest text-center">por apenas</span>
                 <span className="text-sm font-black text-white text-center">{raffle?.price ? formatCurrency(Number(raffle.price)) : 'Preço não disponível'}</span>
@@ -345,7 +357,7 @@ export function Raffle() {
       </div>
 
       {/* Descrição da Rifa */}
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-6 shadow-lg backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
           <div className="flex items-center">
             <CircleHelp size={16} className="mr-2 text-emerald-400" />
@@ -359,7 +371,7 @@ export function Raffle() {
       </div>
 
       {/* Ranking */}
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-6 shadow-lg backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
           <div className="flex items-center">
             <Users size={16} className="mr-2 text-emerald-400" />
@@ -369,16 +381,16 @@ export function Raffle() {
 
         <p className="text-sm text-zinc-300">Um prêmio garantido para os maiores compradores!</p>
 
-        <div className="flex gap-4">
-          <div className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-yellow-500/10 rounded-lg p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-yellow-500/10 p-4">
             <span className="text-2xl font-bold text-yellow-400">1º</span>
           </div>
 
-          <div className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-gray-500/10 rounded-lg p-4">
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-gray-500/10 p-4">
             <span className="text-2xl font-bold text-gray-400">2º</span>
           </div>
 
-          <div className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-yellow-700/10 rounded-lg p-4">
+          <div className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-yellow-700/10 p-4">
             <span className="text-2xl font-bold text-yellow-700">3º</span>
           </div>
         </div>
@@ -426,8 +438,7 @@ export function Raffle() {
       </div>
 
       {/* Caixa Misteriosa */}
-      {/* FALTA ADICIONAR ANIMAÇÃO HOVER */}
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-6 shadow-lg backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
           <div className="flex items-center">
             <ShoppingBag size={16} className="mr-2 text-emerald-400" />
@@ -437,11 +448,11 @@ export function Raffle() {
 
         <p className="text-sm text-zinc-300">Ganhe caixas ao comprar em grandes quantidades e concorra a prêmios instantâneos!</p>
 
-        <div className="flex gap-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
           {mysteryBoxRules.map((rule) => (
             <div
               key={`${rule.boxes}-${rule.minTickets}`}
-              className="w-1/3 flex flex-col items-center gap-2 border border-white/5 bg-slate-800/40 rounded-lg p-4"
+              className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-slate-800/40 p-4"
             >
               <span className="text-sm font-mono uppercase text-zinc-300">
                 {rule.boxes} {rule.boxes === 1 ? "caixa" : "caixas"}
@@ -455,8 +466,7 @@ export function Raffle() {
       </div>
 
       {/* Premio da Caixa Misteriosa */}
-      {/* FALTA CRIAR API DE CONSUMO DE PREMIOS DISPONIVEIS */}
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-6 shadow-lg backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
           <div className="flex items-center">
             <Award size={16} className="mr-2 text-emerald-400" />
@@ -474,15 +484,18 @@ export function Raffle() {
             {prizes.map((prize) => (
               <div
                 key={prize.id}
-                className="flex items-center justify-between border border-white/5 bg-slate-800/40 rounded-lg p-4"
+                className="flex flex-col gap-2 rounded-lg border border-white/5 bg-slate-800/40 p-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="flex flex-col">
                   <span className="text-sm font-mono uppercase text-zinc-200">{prize.title}</span>
                   {prize.description ? (
                     <span className="text-xs text-zinc-500">{prize.description}</span>
                   ) : null}
+                  {typeof prize.chance === "number" ? (
+                    <span className="text-[11px] uppercase text-zinc-500">Chance: {(prize.chance * 100).toFixed(2)}%</span>
+                  ) : null}
                 </div>
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <span className="block text-xs uppercase text-zinc-500">Restam</span>
                   <span className="text-sm font-bold text-emerald-400">{prize.remaining}</span>
                 </div>
@@ -493,8 +506,7 @@ export function Raffle() {
       </div>
 
       {/* Bilheteria */}
-      {/* FALTA CRIAR API DE GANHAR CAIXA MISTERIIOSA MAXIMO DE 6 COM 1200 BILHETES POR COMPRA */}
-      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-6 shadow-lg backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
           <div className="flex items-center">
             <Ticket size={16} className="mr-2 text-emerald-400" />
@@ -502,9 +514,9 @@ export function Raffle() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
           {[5, 10, 100].map((value) => (
-            <button key={value} onClick={() => handleQuantitySelect(value)} className="flex flex-col items-center gap-2 border border-white/5 bg-slate-800/40 text-zinc-200 tabular-nums rounded-lg p-4">
+            <button key={value} onClick={() => handleQuantitySelect(value)} className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-slate-800/40 p-3 text-zinc-200 tabular-nums sm:p-4">
               +{value}
             </button>
           ))}
@@ -543,11 +555,13 @@ export function Raffle() {
             <span className="text-xs uppercase font-mono text-zinc-500">Total a pagar</span>
             <span className="text-lg font-bold text-white">{formatCurrency((Number(raffle.price) || 0) * ticketCount)}</span>
           </div>
-          <div className="flex items-center gap-4 border border-white/5 bg-slate-800/40 rounded-lg px-4 py-2">
+          <div className="flex items-center gap-3 rounded-lg border border-white/5 bg-slate-800/40 px-3 py-2 sm:px-4">
             <div className="rounded-xl">
               <Gift size={16} className="text-zinc-500" />
             </div>
-            <span className="text-xs font-mono uppercase text-zinc-500">Você ganha<br />0 caixas</span>
+            <span className="text-xs font-mono uppercase text-zinc-500">
+              Você ganha<br />{getUnlockedBoxesByTickets(ticketCount)} caixa{getUnlockedBoxesByTickets(ticketCount) !== 1 ? "s" : ""}
+            </span>
           </div>
         </div>
 

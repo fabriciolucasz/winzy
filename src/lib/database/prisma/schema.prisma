@@ -45,19 +45,24 @@ model Profile {
 // --- ESTRUTURA SAAS (TENANT) ---
 
 model Tenant {
-  id              String  @id @default(uuid())
-  owner           User    @relation("OwnerTenants", fields: [ownerId], references: [id], onDelete: Cascade)
-  ownerId         String
-  name            String
-  slug            String  @unique
-  customDomain    String? @unique
-  metaTitle       String?
-  metaDescription String? @db.Text
-  logo            String?
-  favicon         String?
-  instagram       String?
-  telegram        String?
-  supportUrl      String?
+  id                 String             @id @default(uuid())
+  owner              User               @relation("OwnerTenants", fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId            String
+  name               String
+  slug               String             @unique
+  customDomain       String?            @unique
+  metaTitle          String?
+  metaDescription    String?            @db.Text
+  logo               String?
+  favicon            String?
+  instagram          String?
+  telegram           String?
+  supportUrl         String?
+  planName           String?
+  planPriceMonthly   Decimal?           @db.Decimal(10, 2)
+  billingDay         Int?
+  nextBillingAt      DateTime?
+  subscriptionStatus SubscriptionStatus @default(ACTIVE)
 
   connections Connection[]
   members     TenantMember[]
@@ -187,23 +192,27 @@ model ClientProfile {
 }
 
 model Raffle {
-  id          String       @id @default(uuid())
-  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantId    String
-  name        String
-  slug        String
-  description String?      @db.Text
-  banner      String?
-  status      RaffleStatus @default(DRAFT)
-  drawDate    DateTime?
-  finishedAt  DateTime?
-  pixValue    Decimal      @db.Decimal(10, 2)
-  priceTicket Decimal      @db.Decimal(10, 2)
-  minTickets  Int          @default(1)
-  maxTickets  Int
+  id                        String       @id @default(uuid())
+  tenant                    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId                  String
+  name                      String
+  slug                      String
+  description               String?      @db.Text
+  banner                    String?
+  status                    RaffleStatus @default(DRAFT)
+  drawDate                  DateTime?
+  finishedAt                DateTime?
+  pixValue                  Decimal      @db.Decimal(10, 2)
+  priceTicket               Decimal      @db.Decimal(10, 2)
+  minTickets                Int          @default(1)
+  maxTickets                Int
+  collaboratorPrizesEnabled Boolean      @default(false)
+  collaboratorPrizeFirst    Decimal?     @db.Decimal(10, 2)
+  collaboratorPrizeSecond   Decimal?     @db.Decimal(10, 2)
+  collaboratorPrizeThird    Decimal?     @db.Decimal(10, 2)
 
-  awards       Award[]
-  tickets      Ticket[]
+  awards        Award[]
+  tickets       Ticket[]
   mysteryPrizes MysteryPrize[]
 
   createdAt DateTime @default(now())
@@ -215,14 +224,15 @@ model Raffle {
 }
 
 model MysteryPrize {
-  id          String  @id @default(cuid())
-  raffle      Raffle  @relation(fields: [raffleId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  raffle      Raffle   @relation(fields: [raffleId], references: [id], onDelete: Cascade)
   raffleId    String
   name        String
   description String?
-  value       Decimal @db.Decimal(10, 2)
-  remaining   Int     @default(1)
-  totalAmount Int     @default(1)
+  value       Decimal  @db.Decimal(10, 2)
+  chance      Decimal  @default(0.1) @db.Decimal(6, 4)
+  remaining   Int      @default(1)
+  totalAmount Int      @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -344,5 +354,12 @@ enum RaffleStatus {
   DRAFT
   ACTIVE
   FINISHED
+  CANCELED
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  PAST_DUE
   CANCELED
 }

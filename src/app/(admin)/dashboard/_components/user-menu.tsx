@@ -91,13 +91,13 @@ export function UserMenu({ name, email }: UserMenuProps) {
         ref={triggerRef}
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-3 rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 transition-colors hover:bg-slate-900/70"
+        className="flex items-center gap-3 rounded-lg border border-white/15 bg-slate-900/55 px-3 py-2 transition-colors hover:bg-slate-900/75"
       >
         <div className="hidden text-right sm:block">
           <p className="text-sm font-medium text-zinc-100">{name}</p>
           <p className="text-xs text-slate-400">{email}</p>
         </div>
-        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-blue-600 text-xs font-semibold text-white">
+        <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-cyan-600 text-xs font-semibold text-white">
           {avatarInitials}
         </span>
       </button>
@@ -105,7 +105,7 @@ export function UserMenu({ name, email }: UserMenuProps) {
       {isOpen && (
         <div
           ref={menuRef}
-          className="absolute right-0 z-[100] mt-2 w-56 overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-2xl"
+          className="absolute right-0 z-[100] mt-2 w-60 overflow-hidden rounded-xl border border-white/10 bg-slate-900 shadow-[0_18px_45px_-22px_rgba(2,6,23,0.7)]"
         >
           <div className="border-b border-white/10 px-4 py-3">
             <p className="text-sm font-medium text-zinc-100">{name}</p>
@@ -116,7 +116,7 @@ export function UserMenu({ name, email }: UserMenuProps) {
             <Link
               href="/dashboard/profile"
               onClick={() => setIsOpen(false)}
-              className="block rounded-lg px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5"
+              className="block rounded-lg px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/10"
             >
               Editar perfil
             </Link>

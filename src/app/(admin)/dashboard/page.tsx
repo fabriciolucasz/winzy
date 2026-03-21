@@ -3,12 +3,23 @@ import { cookies } from "next/headers";
 import prisma from "@/lib/database/prisma";
 import { getAuthUser } from "@/lib/auth/mddleware";
 import { getActiveTenantCookieName } from "@/lib/auth/jwt";
+import { DashboardOverview } from "./_components/dashboard-overview";
 
-function parsePercentage(rawValue: string | undefined, fallback = 10): number {
-  if (!rawValue) return fallback;
-  const numeric = Number(rawValue.replace(",", "."));
-  if (Number.isNaN(numeric)) return fallback;
-  return Math.min(Math.max(numeric, 0), 100);
+function monthLabel(date: Date): string {
+  return new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date);
+}
+
+function getLastMonthsWindow(size: number): Array<{ key: string; label: string; date: Date }> {
+  const now = new Date();
+  const window: Array<{ key: string; label: string; date: Date }> = [];
+
+  for (let i = size - 1; i >= 0; i -= 1) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    window.push({ key, label: monthLabel(date), date });
+  }
+
+  return window;
 }
 
 export default async function DashboardHomePage() {
@@ -42,14 +53,7 @@ export default async function DashboardHomePage() {
   }
 
   if (!activeTenantSlug) {
-    return (
-      <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-6 shadow-lg backdrop-blur-sm">
-        <h1 className="text-2xl font-mono font-bold uppercase text-zinc-100">Home</h1>
-        <p className="mt-3 text-sm text-slate-300">
-          Selecione uma organizacao pela badge no topo para visualizar os ganhos e metricas.
-        </p>
-      </div>
-    );
+    redirect("/dashboard/organizations");
   }
 
   const tenant = await prisma.tenant.findFirst({
@@ -70,25 +74,11 @@ export default async function DashboardHomePage() {
     select: {
       id: true,
       name: true,
-      raffles: {
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          createdAt: true,
-          tickets: {
-            select: {
-              payment: {
-                select: {
-                  totalValue: true,
-                  status: true,
-                },
-              },
-            },
-          },
-        },
-      },
+      planName: true,
+      planPriceMonthly: true,
+      billingDay: true,
+      nextBillingAt: true,
+      subscriptionStatus: true,
     },
   });
 
@@ -101,86 +91,79 @@ export default async function DashboardHomePage() {
     );
   }
 
-  const feePercentage = parsePercentage(process.env.PLATFORM_FEE_PERCENTAGE, 10);
+  const [payments, soldTicketsCount, activeRaffles, participants] = await Promise.all([
+    prisma.payment.findMany({
+      where: {
+        tenantId: tenant.id,
+        status: "COMPLETED",
+      },
+      select: {
+        totalValue: true,
+        createdAt: true,
+      },
+    }),
+    prisma.ticket.findMany({
+      where: {
+        tenantId: tenant.id,
+      },
+      select: {
+        createdAt: true,
+      },
+    }),
+    prisma.raffle.count({
+      where: {
+        tenantId: tenant.id,
+        status: "ACTIVE",
+      },
+    }),
+    prisma.client.count({
+      where: {
+        tenantId: tenant.id,
+      },
+    }),
+  ]);
 
-  const raffleSummaries = tenant.raffles.map((raffle) => {
-    const gross = raffle.tickets.reduce((acc: number, ticket) => {
-      if (!ticket.payment || ticket.payment.status !== "COMPLETED") return acc;
-      return acc + Number(ticket.payment.totalValue);
-    }, 0);
-    const net = gross * (1 - feePercentage / 100);
+  const window = getLastMonthsWindow(6);
 
-    return {
-      id: raffle.id,
-      name: raffle.name,
-      status: raffle.status,
-      gross,
-      net,
-    };
-  });
+  const revenueByMonth = new Map<string, number>(window.map((item) => [item.key, 0]));
+  for (const payment of payments) {
+    const key = `${payment.createdAt.getFullYear()}-${String(payment.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    revenueByMonth.set(key, (revenueByMonth.get(key) || 0) + Number(payment.totalValue));
+  }
 
-  const totalGross = raffleSummaries.reduce((acc, raffle) => acc + raffle.gross, 0);
-  const totalNet = raffleSummaries.reduce((acc, raffle) => acc + raffle.net, 0);
-  const maxGross = raffleSummaries.reduce((acc, raffle) => Math.max(acc, raffle.gross), 0);
+  const soldTicketsByMonth = new Map<string, number>(window.map((item) => [item.key, 0]));
+  for (const ticket of soldTicketsCount) {
+    const key = `${ticket.createdAt.getFullYear()}-${String(ticket.createdAt.getMonth() + 1).padStart(2, "0")}`;
+    soldTicketsByMonth.set(key, (soldTicketsByMonth.get(key) || 0) + 1);
+  }
 
-  const formatCurrency = new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
+  const revenueSeries = window.map((item) => ({
+    label: item.label,
+    value: revenueByMonth.get(item.key) || 0,
+  }));
+
+  const soldTicketsSeries = window.map((item) => ({
+    label: item.label,
+    value: soldTicketsByMonth.get(item.key) || 0,
+  }));
+
+  const totalRevenue = payments.reduce((acc, payment) => acc + Number(payment.totalValue), 0);
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-5 shadow-lg backdrop-blur-sm md:p-6">
-      <div className="mb-6 border-b border-slate-500/20 pb-4">
-        <p className="text-xs font-mono uppercase tracking-[0.2em] text-slate-400">Painel administrativo</p>
-        <h1 className="mt-2 text-2xl font-mono font-bold uppercase text-zinc-200 md:text-3xl">Home</h1>
-        <p className="mt-2 text-sm text-slate-300">
-          Visao geral de ganhos da organizacao {tenant.name}, com desconto de taxa de plataforma ({feePercentage}%).
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-400">Total bruto</p>
-          <p className="mt-2 text-xl font-semibold text-zinc-100">{formatCurrency.format(totalGross)}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4">
-          <p className="text-xs uppercase tracking-wider text-emerald-300">Total liquido</p>
-          <p className="mt-2 text-xl font-semibold text-emerald-200">{formatCurrency.format(totalNet)}</p>
-        </div>
-        <div className="rounded-xl border border-white/10 bg-slate-950/50 p-4">
-          <p className="text-xs uppercase tracking-wider text-slate-400">Rifas</p>
-          <p className="mt-2 text-xl font-semibold text-zinc-100">{raffleSummaries.length}</p>
-        </div>
-      </div>
-
-      <div className="mt-6 rounded-xl border border-white/10 bg-slate-950/40 p-4">
-        <p className="mb-4 text-sm font-semibold text-zinc-100">Ganhos por rifa</p>
-
-        {raffleSummaries.length === 0 ? (
-          <p className="text-sm text-slate-400">Nenhuma rifa cadastrada ainda.</p>
-        ) : (
-          <div className="space-y-3">
-            {raffleSummaries.map((raffle) => {
-              const barPercent = maxGross > 0 ? (raffle.gross / maxGross) * 100 : 0;
-
-              return (
-                <div key={raffle.id} className="grid gap-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="truncate text-sm text-zinc-200">{raffle.name}</p>
-                    <p className="text-xs text-slate-400">{formatCurrency.format(raffle.gross)}</p>
-                  </div>
-                  <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400"
-                      style={{ width: `${Math.max(barPercent, 2)}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+    <DashboardOverview
+      tenantName={tenant.name}
+      totalRevenue={totalRevenue}
+      activeRaffles={activeRaffles}
+      participants={participants}
+      revenueSeries={revenueSeries}
+      soldTicketsSeries={soldTicketsSeries}
+      subscription={{
+        planName: tenant.planName,
+        planPriceMonthly: tenant.planPriceMonthly ? Number(tenant.planPriceMonthly) : null,
+        billingDay: tenant.billingDay,
+        nextBillingAt: tenant.nextBillingAt ? tenant.nextBillingAt.toISOString() : null,
+        status: tenant.subscriptionStatus,
+      }}
+    />
   );
 }

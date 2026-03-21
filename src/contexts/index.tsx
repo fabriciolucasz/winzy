@@ -129,7 +129,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppContextProvider({ children, tenant, raffle }: { children: ReactNode; tenant?: Tenant; raffle?: Raffle }) {
   const [tenantState, setTenant] = useState<Tenant | null>(tenant || null);
   const [raffleState, setRaffle] = useState<Raffle | null>(raffle || null);
-  const [user, setUser] = useState<User | null>(() => getSession());
+  const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [ticketCount, setTicketCount] = useState(raffle?.minNumbers || 1);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -162,6 +162,12 @@ export function AppContextProvider({ children, tenant, raffle }: { children: Rea
     const tenantSlug = tenantState?.slug;
 
     if (user || !tenantSlug) {
+      return;
+    }
+
+    const sessionUser = getSession();
+    if (sessionUser) {
+      setUser(sessionUser);
       return;
     }
 

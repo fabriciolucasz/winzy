@@ -65,7 +65,10 @@ export async function GET() {
   }
 
   const raffles = await prisma.raffle.findMany({
-    where: { tenantId: tenant.id },
+    where: {
+      tenantId: tenant.id,
+      status: "ACTIVE",
+    },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -76,10 +79,64 @@ export async function GET() {
       priceTicket: true,
       minTickets: true,
       maxTickets: true,
+      collaboratorPrizesEnabled: true,
+      collaboratorPrizeFirst: true,
+      collaboratorPrizeSecond: true,
+      collaboratorPrizeThird: true,
+      mysteryPrizes: {
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          name: true,
+          value: true,
+          chance: true,
+          remaining: true,
+          totalAmount: true,
+        },
+      },
       status: true,
       createdAt: true,
     },
   });
+
+  const raffleIds = raffles.map((raffle) => raffle.id);
+
+  const [soldTicketsByRaffle, winnerAwards] = await Promise.all([
+    raffleIds.length
+      ? prisma.ticket.groupBy({
+        by: ["raffleId"],
+        where: {
+          raffleId: { in: raffleIds },
+          payment: {
+            status: "COMPLETED",
+          },
+        },
+        _count: {
+          _all: true,
+        },
+      })
+      : Promise.resolve([]),
+    raffleIds.length
+      ? prisma.award.findMany({
+        where: {
+          raffleId: { in: raffleIds },
+          type: "RAFFLE_WINNER",
+        },
+        select: {
+          id: true,
+          raffleId: true,
+          createdAt: true,
+        },
+      })
+      : Promise.resolve([]),
+  ]);
+
+  const soldTicketsMap = new Map(
+    soldTicketsByRaffle.map((row) => [row.raffleId, row._count._all]),
+  );
+  const winnerMap = new Map(
+    winnerAwards.map((award) => [award.raffleId, { id: award.id, createdAt: award.createdAt.toISOString() }]),
+  );
 
   return NextResponse.json({
     success: true,
@@ -92,6 +149,20 @@ export async function GET() {
       ...raffle,
       pixValue: Number(raffle.pixValue),
       priceTicket: Number(raffle.priceTicket),
+      collaboratorPrizeFirst: raffle.collaboratorPrizeFirst ? Number(raffle.collaboratorPrizeFirst) : null,
+      collaboratorPrizeSecond: raffle.collaboratorPrizeSecond ? Number(raffle.collaboratorPrizeSecond) : null,
+      collaboratorPrizeThird: raffle.collaboratorPrizeThird ? Number(raffle.collaboratorPrizeThird) : null,
+      soldTicketsCount: soldTicketsMap.get(raffle.id) || 0,
+      soldTicketsTotal: raffle.maxTickets,
+      winner: winnerMap.get(raffle.id) || null,
+      mysteryPrizes: raffle.mysteryPrizes.map((prize) => ({
+        id: prize.id,
+        name: prize.name,
+        value: Number(prize.value),
+        chance: Number(prize.chance),
+        remaining: prize.remaining,
+        totalAmount: prize.totalAmount,
+      })),
     })),
   });
 }
@@ -127,23 +198,43 @@ export async function POST(request: NextRequest) {
   const priceTicket = Number(payload?.priceTicket ?? 0);
   const minTickets = Number(payload?.minTickets ?? 100);
   const maxTickets = Number(payload?.maxTickets ?? 1_000_000);
+  const collaboratorPrizesEnabled = Boolean(payload?.collaboratorPrizesEnabled);
+  const collaboratorPrizeFirst =
+    payload?.collaboratorPrizeFirst !== undefined && payload?.collaboratorPrizeFirst !== null && String(payload.collaboratorPrizeFirst).trim() !== ""
+      ? Number(payload.collaboratorPrizeFirst)
+      : null;
+  const collaboratorPrizeSecond =
+    payload?.collaboratorPrizeSecond !== undefined && payload?.collaboratorPrizeSecond !== null && String(payload.collaboratorPrizeSecond).trim() !== ""
+      ? Number(payload.collaboratorPrizeSecond)
+      : null;
+  const collaboratorPrizeThird =
+    payload?.collaboratorPrizeThird !== undefined && payload?.collaboratorPrizeThird !== null && String(payload.collaboratorPrizeThird).trim() !== ""
+      ? Number(payload.collaboratorPrizeThird)
+      : null;
   const mysteryPrizesRaw = Array.isArray(payload?.mysteryPrizes) ? payload.mysteryPrizes : [];
-  const mysteryPrizes: Array<{ name: string; value: number; description: string | null }> = mysteryPrizesRaw
+  const mysteryPrizes: Array<{ name: string; value: number; chance: number; description: string | null }> = mysteryPrizesRaw
     .map((item: unknown) => {
-      const entry = item as { name?: unknown; value?: unknown; description?: unknown };
+      const entry = item as { name?: unknown; value?: unknown; chance?: unknown; description?: unknown };
       const prizeName = String(entry?.name ?? "").trim();
       const prizeValue = Number(entry?.value ?? 0);
+      const prizeChance = Number(entry?.chance ?? 0.1);
       const prizeDescription = entry?.description ? String(entry.description).trim() : null;
 
       return {
         name: prizeName,
         value: prizeValue,
+        chance: prizeChance,
         description: prizeDescription,
       };
     })
     .filter(
-      (item: { name: string; value: number; description: string | null }) =>
-        item.name.length > 0 && Number.isFinite(item.value) && item.value > 0,
+      (item: { name: string; value: number; chance: number; description: string | null }) =>
+        item.name.length > 0 &&
+        Number.isFinite(item.value) &&
+        item.value > 0 &&
+        Number.isFinite(item.chance) &&
+        item.chance > 0 &&
+        item.chance <= 1,
     );
 
   if (!name) {
@@ -156,6 +247,18 @@ export async function POST(request: NextRequest) {
 
   if (minTickets < 1 || maxTickets < minTickets) {
     return NextResponse.json({ success: false, error: "Faixa de tickets invalida." }, { status: 400 });
+  }
+
+  if (collaboratorPrizesEnabled) {
+    const prizes = [collaboratorPrizeFirst, collaboratorPrizeSecond, collaboratorPrizeThird].filter(
+      (value) => value !== null,
+    ) as number[];
+    if (prizes.some((value) => !Number.isFinite(value) || value <= 0)) {
+      return NextResponse.json(
+        { success: false, error: "Premios de colaboradores invalidos." },
+        { status: 400 },
+      );
+    }
   }
 
   const baseSlug = slugify(payload?.slug ? String(payload.slug) : name);
@@ -189,12 +292,17 @@ export async function POST(request: NextRequest) {
       minTickets,
       maxTickets,
       status: "ACTIVE",
+      collaboratorPrizesEnabled,
+      collaboratorPrizeFirst: collaboratorPrizesEnabled ? collaboratorPrizeFirst : null,
+      collaboratorPrizeSecond: collaboratorPrizesEnabled ? collaboratorPrizeSecond : null,
+      collaboratorPrizeThird: collaboratorPrizesEnabled ? collaboratorPrizeThird : null,
       mysteryPrizes: mysteryPrizes.length
         ? {
           create: mysteryPrizes.map((prize) => ({
             name: prize.name,
             description: prize.description,
             value: prize.value,
+            chance: prize.chance,
             totalAmount: 1,
             remaining: 1,
           })),

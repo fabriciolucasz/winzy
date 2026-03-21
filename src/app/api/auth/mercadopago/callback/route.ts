@@ -36,7 +36,7 @@ function parseState(state: string | null): { tenantId: string; userId: string } 
 
 export async function GET(request: NextRequest) {
   const baseUrl = getBaseUrl(request);
-  
+
   const authUser = await getAuthUser();
   if (!authUser) {
     return NextResponse.redirect(new URL("/login", baseUrl));

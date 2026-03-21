@@ -67,42 +67,52 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   const hasOrganizations = tenants.length > 0;
 
   return (
-    <div className="relative min-h-screen bg-[#0b1220] text-zinc-100">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.14),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.1),transparent_34%)]" />
+    <div className="relative min-h-screen bg-[#071126] text-zinc-100">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_22%,rgba(6,182,212,0.18),transparent_30%),radial-gradient(circle_at_84%_76%,rgba(59,130,246,0.14),transparent_30%)]" />
 
-      <div className="relative mx-auto flex min-h-screen">
-        {hasOrganizations ? (
-          <aside className="hidden w-72 border-r border-white/10 bg-slate-950/70 p-5 lg:flex lg:flex-col">
-            <div className="mb-8 flex items-center gap-3">
-              <Logo />
-              <div>
-                <p className="text-sm font-semibold tracking-wide text-zinc-100">Winzy</p>
-                <p className="text-xs text-slate-400">Painel de Controle</p>
-              </div>
+      <header className="relative z-40 w-full border-b border-white/10 bg-slate-950/55 backdrop-blur">
+        <div className="flex h-[76px] w-full items-center justify-between gap-4 px-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex items-center gap-3">
+              <Logo className="h-8 w-8" width={32} height={32} href="/dashboard" />
             </div>
 
+            {hasOrganizations ? (
+              <TenantSwitcher activeTenantName={activeTenantName} tenants={tenants} />
+            ) : (
+              <p className="text-sm text-slate-300">Selecione uma organizacao</p>
+            )}
+          </div>
+
+          <UserMenu name={user.name} email={user.email} />
+        </div>
+      </header>
+
+      <div className="relative flex min-h-[calc(100vh-76px)] w-full">
+        {hasOrganizations ? (
+          <aside className="hidden w-64 border-r border-white/10 bg-slate-950/55 p-5 backdrop-blur lg:flex lg:flex-col">
             <nav className="space-y-1">
               <Link
                 href="/dashboard"
-                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5"
+                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/10"
               >
                 Home
               </Link>
               <Link
-                href="/dashboard/organizations"
-                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5"
-              >
-                Organizacoes
-              </Link>
-              <Link
                 href="/dashboard/raffles"
-                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5"
+                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/10"
               >
                 Rifas
               </Link>
               <Link
+                href="/dashboard/subscription"
+                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/10"
+              >
+                Assinatura
+              </Link>
+              <Link
                 href="/dashboard/settings"
-                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/5"
+                className="flex items-center rounded-xl px-3 py-2 text-sm text-slate-200 transition-colors hover:bg-white/10"
               >
                 Configuracoes
               </Link>
@@ -110,26 +120,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
           </aside>
         ) : null}
 
-        <div className="flex min-h-screen flex-1 flex-col">
-          <header className="relative z-40 border-b border-white/10 bg-slate-950/45 px-4 py-3 backdrop-blur-sm md:px-7">
-            <div className="flex items-center justify-between gap-4">
-              {hasOrganizations ? (
-                <div className="flex items-center gap-3">
-                  <TenantSwitcher activeTenantName={activeTenantName} tenants={tenants} />
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Logo />
-                  <p className="text-sm text-slate-300">Suas organizacoes</p>
-                </div>
-              )}
-
-              <UserMenu name={user.name} email={user.email} />
-            </div>
-          </header>
-
-          <main className="flex-1 p-4 md:p-7">{children}</main>
-        </div>
+        <main className="relative flex-1 px-4 py-6 md:px-6 md:py-8">{children}</main>
       </div>
     </div>
   );

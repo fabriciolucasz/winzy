@@ -122,6 +122,9 @@ export default function DashboardSettingsPage() {
         <p className="mt-2 text-sm text-slate-300">
           Personalize nome do site, metadata, logo, favicon e links sociais da organizacao ativa.
         </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Dados de assinatura ficam na aba Assinatura e nao sao editaveis por este painel.
+        </p>
       </div>
 
       {loading ? (

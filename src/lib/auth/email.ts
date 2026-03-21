@@ -68,3 +68,35 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<boo
     return false;
   }
 }
+
+export async function sendRaffleWinnerEmail(params: {
+  email: string;
+  clientName: string;
+  raffleName: string;
+  ticketNumber: number;
+}): Promise<boolean> {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn("SMTP nao configurado. Ignorando envio de e-mail ao ganhador da rifa.");
+    return false;
+  }
+
+  const { email, clientName, raffleName, ticketNumber } = params;
+
+  try {
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM || "noreply@incherry.com.br",
+      to: email,
+      subject: `Voce ganhou a rifa ${raffleName}!`,
+      html: `
+        <h2>Parabens, ${clientName}!</h2>
+        <p>Voce foi sorteado na rifa <strong>${raffleName}</strong>.</p>
+        <p>Bilhete vencedor: <strong>${ticketNumber}</strong>.</p>
+        <p>Nossa equipe entrara em contato com as proximas instrucoes.</p>
+      `,
+    });
+    return true;
+  } catch (error) {
+    console.error("Erro ao enviar email do ganhador da rifa:", error);
+    return false;
+  }
+}

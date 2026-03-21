@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Logo } from "@/components/ui/logo";
+import { Loader2 } from "lucide-react";
 
 type LoginApiResponse = {
   success: boolean;
@@ -31,6 +32,7 @@ export function Login({ mode = "login" }: { mode?: "login" | "register" }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const submitLabel = useMemo(() => {
     if (isSubmitting) return isRegister ? "Registrando..." : "Entrando...";
@@ -79,7 +81,11 @@ export function Login({ mode = "login" }: { mode?: "login" | "register" }) {
 
       setSuccess(isRegister ? "Conta criada com sucesso!" : "Login realizado com sucesso!");
 
-      router.replace(isRegister ? "/login" : "/dashboard");
+      if (!isRegister) {
+        setIsRedirecting(true);
+      }
+
+      router.replace(isRegister ? "/login" : "/dashboard/organizations");
     } catch {
       setError("Erro de conexão. Verifique sua internet e tente novamente.");
     } finally {
@@ -89,6 +95,15 @@ export function Login({ mode = "login" }: { mode?: "login" | "register" }) {
 
   return (
     <div className="flex h-screen items-center justify-center">
+      {isRedirecting ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#070d18]/75 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-900 px-5 py-4 text-sm text-slate-200 shadow-xl">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Entrando no painel...
+          </div>
+        </div>
+      ) : null}
+
       <Logo className="absolute top-4 left-4" />
       <div className="w-full max-w-md rounded-[1.25rem] bg-slate-800/40 p-8 shadow-lg">
         <h2 className="mb-6 text-center text-xl font-mono  uppercase font-bold text-zinc-200 border-b border-slate-500/5 pb-2">

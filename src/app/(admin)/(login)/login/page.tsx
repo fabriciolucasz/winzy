@@ -7,7 +7,7 @@ export default async function SignInPage() {
   const authUser = await getAuthUser();
 
   if (authUser) {
-    redirect("/dashboard");
+    redirect("/dashboard/organizations");
   }
 
   return (

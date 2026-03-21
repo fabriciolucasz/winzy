@@ -22,9 +22,8 @@ export function MobileMenu() {
       )}
 
       <aside
-        className={`fixed left-0 top-[76px] z-40 h-[calc(100vh-76px)] w-64 border-r border-white/10 bg-slate-950/95 backdrop-blur p-5 transition-transform duration-300 lg:hidden ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed left-0 top-[76px] z-40 h-[calc(100vh-76px)] w-64 border-r border-white/10 bg-slate-950/95 backdrop-blur p-5 transition-transform duration-300 lg:hidden ${isOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <nav className="space-y-1">
           <Link

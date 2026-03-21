@@ -275,10 +275,10 @@ model Payment {
   status PaymentStatus @default(PENDING)
 
   // Split payment tracking
-  platformFeePercentage Decimal?  @db.Decimal(5, 2)
-  platformFeeValue      Decimal?  @db.Decimal(10, 2)
-  sellerNetValue        Decimal?  @db.Decimal(10, 2)
-  splitVerified         Boolean   @default(false)
+  platformFeePercentage Decimal? @db.Decimal(5, 2)
+  platformFeeValue      Decimal? @db.Decimal(10, 2)
+  sellerNetValue        Decimal? @db.Decimal(10, 2)
+  splitVerified         Boolean  @default(false)
 
   tickets   Ticket[]
   createdAt DateTime @default(now())

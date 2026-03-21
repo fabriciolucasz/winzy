@@ -230,7 +230,7 @@ async function processPaymentNotificationByExternalId(externalId: string) {
 
     await tx.payment.update({
       where: { id: payment.id },
-      data: { 
+      data: {
         status: "COMPLETED",
         splitVerified: splitVerified,
       },

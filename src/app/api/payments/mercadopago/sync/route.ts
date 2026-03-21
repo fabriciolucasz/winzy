@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
+function getBaseUrl(request: NextRequest): string {
+  const envUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (envUrl) return envUrl.replace(/\/$/, "");
+
+  const host = request.headers.get("host") || "localhost:3000";
+  const protocol = host.includes("localhost") ? "http" : "https";
+  return `${protocol}://${host}`;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -10,7 +19,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Encaminha para o webhook interno para reutilizar a mesma lógica de processamento.
-    const url = new URL(`/api/payments/mercadopago/webhook?id=${encodeURIComponent(externalId)}`, request.url);
+    const baseUrl = getBaseUrl(request);
+    const url = new URL(`/api/payments/mercadopago/webhook?id=${encodeURIComponent(externalId)}`, baseUrl);
     const webhookResponse = await fetch(url, { method: "GET" });
     const data = await webhookResponse.json();
 

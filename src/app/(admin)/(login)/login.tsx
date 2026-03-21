@@ -104,9 +104,9 @@ export function Login({ mode = "login" }: { mode?: "login" | "register" }) {
         </div>
       ) : null}
 
-      <Logo className="absolute top-4 left-4" />
-      <div className="w-full max-w-md rounded-[1.25rem] bg-slate-800/40 p-8 shadow-lg">
-        <h2 className="mb-6 text-center text-xl font-mono  uppercase font-bold text-zinc-200 border-b border-slate-500/5 pb-2">
+      <Logo className="absolute top-4 left-4 md:top-6 md:left-6" />
+      <div className="w-full max-w-md rounded-[1.25rem] bg-slate-800/40 p-6 shadow-lg mx-4 sm:mx-0 sm:p-8">
+        <h2 className="mb-6 text-center text-lg sm:text-xl font-mono uppercase font-bold text-zinc-200 border-b border-slate-500/5 pb-2">
           {isRegister ? "Crie uma nova conta" : "Faça login na sua conta"}
         </h2>
 

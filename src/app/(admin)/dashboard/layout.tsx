@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/auth/mddleware";
 import { getActiveTenantCookieName } from "@/lib/auth/jwt";
 import prisma from "@/lib/database/prisma";
 import { UserMenu } from "./_components/user-menu";
+import { MobileMenu } from "./_components/mobile-menu";
 import { Logo } from "@/components/ui/logo";
 import { TenantSwitcher } from "./_components/tenant-switcher";
 
@@ -72,7 +73,8 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
       <header className="relative z-40 w-full border-b border-white/10 bg-slate-950/55 backdrop-blur">
         <div className="flex h-[76px] w-full items-center justify-between gap-4 px-4 md:px-6">
-          <div className="flex min-w-0 items-center gap-4">
+          <div className="flex min-w-0 items-center gap-2 lg:gap-4">
+            {hasOrganizations && <MobileMenu />}
             <div className="flex items-center gap-3">
               <Logo className="h-8 w-8" width={32} height={32} href="/dashboard" />
             </div>

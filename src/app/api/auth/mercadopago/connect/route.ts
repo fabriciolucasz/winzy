@@ -14,20 +14,22 @@ function getBaseUrl(request: NextRequest): string {
 }
 
 export async function GET(request: NextRequest) {
+  const baseUrl = getBaseUrl(request);
+
   const authUser = await getAuthUser();
   if (!authUser) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", baseUrl));
   }
 
   const clientId = process.env.MP_CLIENT_ID;
   if (!clientId) {
-    return NextResponse.redirect(new URL("/dashboard/settings?mp=missing-client-id", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?mp=missing-client-id", baseUrl));
   }
 
   const cookieStore = await cookies();
   const activeTenantSlug = cookieStore.get(getActiveTenantCookieName())?.value;
   if (!activeTenantSlug) {
-    return NextResponse.redirect(new URL("/dashboard/organizations?mp=missing-tenant", request.url));
+    return NextResponse.redirect(new URL("/dashboard/organizations?mp=missing-tenant", baseUrl));
   }
 
   const tenant = await prisma.tenant.findFirst({
@@ -49,10 +51,10 @@ export async function GET(request: NextRequest) {
   });
 
   if (!tenant) {
-    return NextResponse.redirect(new URL("/dashboard/settings?mp=tenant-not-found", request.url));
+    return NextResponse.redirect(new URL("/dashboard/settings?mp=tenant-not-found", baseUrl));
   }
 
-  const redirectUri = process.env.MP_REDIRECT_URI || `${getBaseUrl(request)}/api/auth/mercadopago/callback`;
+  const redirectUri = process.env.MP_REDIRECT_URI || `${baseUrl}/api/auth/mercadopago/callback`;
   const state = Buffer.from(JSON.stringify({ tenantId: tenant.id, userId: authUser.userId })).toString("base64url");
 
   const authUrl = new URL("https://auth.mercadopago.com/authorization");

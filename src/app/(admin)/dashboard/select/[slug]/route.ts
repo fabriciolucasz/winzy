@@ -3,6 +3,15 @@ import prisma from "@/lib/database/prisma";
 import { getAuthUser } from "@/lib/auth/mddleware";
 import { getActiveTenantCookieName } from "@/lib/auth/jwt";
 
+function getBaseUrl(): string {
+  // Em produção, usar NEXT_PUBLIC_APP_URL
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
+  }
+  // Em desenvolvimento, construir a partir da requisição
+  return "http://localhost:3000";
+}
+
 interface RouteParams {
   params: Promise<{ slug: string }>;
 }
@@ -11,7 +20,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const authUser = await getAuthUser();
 
   if (!authUser) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", getBaseUrl()));
   }
 
   const { slug } = await params;
@@ -35,12 +44,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   });
 
   if (!tenant) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/dashboard", getBaseUrl()));
   }
 
   const nextPath = request.nextUrl.searchParams.get("next");
-  const safeNextPath = nextPath && nextPath.startsWith("/") ? nextPath : `/dashboard/${tenant.slug}`;
-  const response = NextResponse.redirect(new URL(safeNextPath, request.url));
+  const safeNextPath = nextPath && nextPath.startsWith("/") ? nextPath : `/dashboard`;
+  const baseUrl = getBaseUrl();
+  const response = NextResponse.redirect(new URL(safeNextPath, baseUrl));
 
   response.cookies.set({
     name: getActiveTenantCookieName(),

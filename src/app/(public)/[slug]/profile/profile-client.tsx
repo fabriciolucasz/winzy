@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
-import { Trophy, Edit, FileText, LogOut, Heart } from "lucide-react";
+import { Trophy, Edit, FileText, LogOut, Heart, Gift } from "lucide-react";
 import { TenantLogoHeader } from "@/components/tenant/tenant-logo-header";
+import { Footer } from "@/components/tenant/footer";
+import { clearSession } from "@/lib/session";
 
 type MeResponse = {
   success: boolean;
@@ -44,12 +46,23 @@ type MeResponse = {
     slug: string;
     image?: string | null;
     status: string;
+    winnerTicketNumber?: string | null;
   }>;
   prizes?: Array<{
     id: string;
     title: string;
     raffleTitle?: string | null;
     createdAt: string;
+  }>;
+  boxes?: Array<{
+    id: string;
+    raffleId: string;
+    raffleTitle: string;
+    raffleImage?: string | null;
+    boxNumber: number;
+    status: "OPENED" | "AVAILABLE";
+    prizeTitle?: string | null;
+    openedAt?: string | null;
   }>;
   payments?: Array<{
     id: string;
@@ -70,6 +83,14 @@ type ClientProfileViewProps = {
   };
 };
 
+type OpenBoxApiResponse = {
+  success?: boolean;
+  error?: string;
+  prize?: {
+    name?: string;
+  };
+};
+
 export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -80,15 +101,61 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
   const [avatar, setAvatar] = useState("");
   const [banner, setBanner] = useState("");
   const [email, setEmail] = useState("");
+  const [cpf, setCpf] = useState("");
 
   const [summary, setSummary] = useState<MeResponse["summary"]>();
   const [tickets, setTickets] = useState<MeResponse["tickets"]>([]);
   const [raffles, setRaffles] = useState<MeResponse["raffles"]>([]);
   const [prizes, setPrizes] = useState<MeResponse["prizes"]>([]);
+  const [boxes, setBoxes] = useState<MeResponse["boxes"]>([]);
   const [payments, setPayments] = useState<MeResponse["payments"]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+  const [isBoxModalOpen, setIsBoxModalOpen] = useState(false);
+  const [activeBoxId, setActiveBoxId] = useState<string | null>(null);
+  const [boxModalPhase, setBoxModalPhase] = useState<"opening" | "result">("opening");
+  const [boxModalMessage, setBoxModalMessage] = useState("");
+  const [isOpeningBox, setIsOpeningBox] = useState(false);
+  const [isTicketsModalOpen, setIsTicketsModalOpen] = useState(false);
+  const [selectedRaffleForTickets, setSelectedRaffleForTickets] = useState<MeResponse["raffles"][0] | null>(null);
+
+  function maskCPF(value: string): string {
+    const digits = String(value || "").replace(/\D/g, "");
+    if (!digits) return "***.***.***-**";
+    const lastTwo = digits.slice(-2).padStart(2, "*");
+    return `***.***.***-${lastTwo}`;
+  }
+
+  const personalBoxes = useMemo(
+    () => (boxes || []).map((box, index) => ({ ...box, personalNumber: index + 1 })),
+    [boxes],
+  );
+
+  const selectedRaffleTickets = useMemo(() => {
+    if (!selectedRaffleForTickets) return [];
+    return (tickets || [])
+      .filter(
+        (ticket) =>
+          ticket.raffle.id === selectedRaffleForTickets.id ||
+          ticket.raffle.slug === selectedRaffleForTickets.slug,
+      )
+      .sort((a, b) => Number(a.number) - Number(b.number));
+  }, [tickets, selectedRaffleForTickets]);
+
+  const selectedRaffleWinningTicket = useMemo(() => {
+    if (!selectedRaffleForTickets || selectedRaffleForTickets.status !== "FINISHED") {
+      return null;
+    }
+
+    const winnerNumber = selectedRaffleForTickets.winnerTicketNumber ?? null;
+    if (!winnerNumber) {
+      return null;
+    }
+
+    const hasWinnerTicket = selectedRaffleTickets.some((ticket) => ticket.number === winnerNumber);
+    return hasWinnerTicket ? winnerNumber : null;
+  }, [selectedRaffleForTickets, selectedRaffleTickets]);
 
   useEffect(() => {
     if (!slug) {
@@ -125,11 +192,13 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
       setAvatar(data.client.avatar || "");
       setBanner(data.client.banner || "");
       setEmail(data.client.email);
+      setCpf(data.client.cpf || "");
 
       setSummary(data.summary);
       setTickets(data.tickets || []);
       setRaffles(data.raffles || []);
       setPrizes(data.prizes || []);
+      setBoxes(data.boxes || []);
       setPayments(data.payments || []);
     } catch {
       setError("Erro de conexao ao carregar perfil.");
@@ -169,8 +238,56 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
 
   async function handleLogout() {
     await fetch("/api/public/client/logout", { method: "POST" });
+    clearSession();
     router.replace(`/${slug}`);
     router.refresh();
+  }
+
+  async function handleBoxClick(box: NonNullable<MeResponse["boxes"]>[number]) {
+    setError("");
+    setMessage("");
+
+    if (box.status === "OPENED") {
+      setActiveBoxId(box.id);
+      setBoxModalPhase("result");
+      setBoxModalMessage(box.prizeTitle || "Nada, essa caixa veio vazia kk");
+      setIsBoxModalOpen(true);
+      return;
+    }
+
+    if (isOpeningBox) {
+      return;
+    }
+
+    setActiveBoxId(box.id);
+    setBoxModalPhase("opening");
+    setBoxModalMessage("");
+    setIsBoxModalOpen(true);
+    setIsOpeningBox(true);
+
+    try {
+      const response = await fetch(`/api/mystery-box/${box.raffleId}/open`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = (await response.json()) as OpenBoxApiResponse;
+
+      if (!response.ok || !data.success) {
+        setBoxModalPhase("result");
+        setBoxModalMessage(data.error || "Nao foi possivel abrir a caixa agora.");
+        return;
+      }
+
+      setBoxModalPhase("result");
+      setBoxModalMessage(data.prize?.name || "Nada, essa caixa veio vazia kk");
+      await loadProfile();
+    } catch {
+      setBoxModalPhase("result");
+      setBoxModalMessage("Erro de conexao ao abrir caixa.");
+    } finally {
+      setIsOpeningBox(false);
+    }
   }
 
   if (loading) {
@@ -188,32 +305,33 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="flex min-h-screen flex-col">
       <motion.div
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="sticky top-0 z-40 border-b border-slate-700/50 bg-slate-950/95 backdrop-blur px-4 py-4"
+        className="sticky top-0 z-40 border-b border-slate-500/10 bg-slate-900/85 backdrop-blur px-4 py-2.5"
       >
         <TenantLogoHeader
           href={`/${slug}`}
           logoUrl={tenant?.logoUrl}
           tenantName={tenant?.name}
+          compact
         />
       </motion.div>
 
-      <main className="mx-auto w-full max-w-6xl">
+      <main className="mx-auto w-full max-w-6xl flex-1">
         {/* Banner Section */}
         <div className="relative">
-          <div className="h-48 w-full bg-gradient-to-r from-cyan-600/30 via-slate-900 to-slate-900">
+          <div className="h-48 w-full overflow-hidden rounded-b-3xl bg-gradient-to-r from-emerald-500/20 via-slate-900 to-slate-900">
             {banner ? (
               <img
                 src={banner}
                 alt="Profile banner"
-                className="h-full w-full object-cover"
+                className="h-full w-full rounded-b-3xl object-cover"
               />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-b from-cyan-600/20 to-slate-900" />
+              <div className="absolute inset-0 rounded-b-3xl bg-gradient-to-b from-emerald-500/20 to-slate-900" />
             )}
           </div>
 
@@ -223,7 +341,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
               <div className="flex items-end gap-4">
                 {/* Avatar */}
                 <div className="relative">
-                  <div className="h-32 w-32 rounded-xl border-4 border-slate-950 bg-gradient-to-br from-cyan-400 to-slate-700 flex items-center justify-center overflow-hidden shadow-lg">
+                  <div className="flex h-32 w-32 items-center justify-center overflow-hidden rounded-full border-4 border-slate-950 bg-gradient-to-br from-emerald-400 to-slate-700 shadow-lg">
                     {avatar ? (
                       <img
                         src={avatar}
@@ -243,7 +361,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <h1 className="text-3xl font-bold text-white">{nickname}</h1>
                   <p className="text-sm text-slate-400">{email}</p>
                   <p className="text-xs text-slate-500 mt-1">
-                    CPF: {email.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4")}
+                    CPF: {maskCPF(cpf)}
                   </p>
                 </div>
               </div>
@@ -253,7 +371,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setIsEditing(true)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-cyan-500/50 bg-cyan-500/10 px-4 py-2 text-sm font-medium text-cyan-300 transition-colors hover:bg-cyan-500/20"
+                    className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/50 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-300 transition-colors hover:bg-emerald-500/20"
                   >
                     <Edit size={16} />
                     Editar Perfil
@@ -293,7 +411,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
           >
             <div className="rounded-lg border border-white/10 bg-slate-900/40 p-6">
               <p className="text-xs font-mono uppercase tracking-wider text-slate-400">Total Gasto</p>
-              <p className="mt-2 text-2xl font-bold text-cyan-400">
+              <p className="mt-2 text-2xl font-bold text-emerald-400">
                 R$ {(summary?.totalSpent || 0).toLocaleString("pt-BR", {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
@@ -328,7 +446,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <input
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-cyan-500 focus:outline-none"
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -337,7 +455,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <input
                     value={nickname}
                     onChange={(e) => setNickname(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-cyan-500 focus:outline-none"
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -346,7 +464,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <input
                     value={avatar}
                     onChange={(e) => setAvatar(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-cyan-500 focus:outline-none"
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -355,7 +473,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <input
                     value={banner}
                     onChange={(e) => setBanner(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-cyan-500 focus:outline-none"
+                    className="mt-1 w-full rounded-lg border border-white/10 bg-slate-800/70 px-3 py-2 text-sm text-zinc-100 focus:border-emerald-500 focus:outline-none"
                   />
                 </div>
 
@@ -372,7 +490,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <button
                     type="submit"
                     disabled={isSaving}
-                    className="flex-1 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-cyan-700 disabled:opacity-70"
+                    className="flex-1 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-[#0B1120] transition-colors hover:bg-emerald-400 disabled:opacity-70"
                   >
                     {isSaving ? "Salvando..." : "Salvar alterações"}
                   </button>
@@ -400,23 +518,34 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <h2 className="text-lg font-semibold text-white">Minhas Caixas (Conquistas)</h2>
                 </div>
 
-                {prizes && prizes.length > 0 ? (
+                {personalBoxes.length > 0 ? (
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {prizes.map((prize) => (
-                      <div
-                        key={prize.id}
-                        className="rounded-lg border border-white/10 bg-slate-900/30 p-4 transition-colors hover:border-amber-500/50 hover:bg-slate-900/50"
+                    {personalBoxes.map((box) => (
+                      <button
+                        key={box.id}
+                        type="button"
+                        onClick={() => handleBoxClick(box)}
+                        disabled={isOpeningBox && activeBoxId === box.id}
+                        className={`rounded-lg border p-4 transition-colors ${box.status === "OPENED"
+                            ? "border-white/10 bg-slate-900/25 opacity-75"
+                            : "border-emerald-400/40 bg-emerald-500/10"
+                          }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-500/20">
-                            <Trophy size={24} className="text-amber-400" />
+                          <div className={`flex h-12 w-12 items-center justify-center rounded-lg ${box.status === "OPENED" ? "bg-slate-700/40" : "bg-emerald-500/20"
+                            }`}>
+                            <Trophy size={24} className={box.status === "OPENED" ? "text-slate-400" : "text-emerald-300"} />
                           </div>
                           <div>
-                            <p className="font-medium text-white">{prize.title}</p>
-                            <p className="text-xs text-slate-400">{prize.raffleTitle}</p>
+                            <p className="font-medium text-white">Caixa #{box.personalNumber}</p>
+                            {box.status === "OPENED" ? (
+                              <p className="text-xs text-slate-400">Toque para ver o resultado</p>
+                            ) : (
+                              <p className="text-xs text-emerald-300">Disponível para abrir</p>
+                            )}
                           </div>
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 ) : (
@@ -434,7 +563,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                 transition={{ delay: 0.4, duration: 0.4 }}
               >
                 <div className="mb-4 flex items-center gap-2">
-                  <FileText size={20} className="text-cyan-400" />
+                  <FileText size={20} className="text-emerald-400" />
                   <h2 className="text-lg font-semibold text-white">Histórico de Pagamentos</h2>
                 </div>
 
@@ -443,7 +572,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                     {payments.map((payment) => (
                       <div
                         key={payment.id}
-                        className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-900/30 p-4 transition-colors hover:border-cyan-500/30 hover:bg-slate-900/50"
+                        className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-900/30 p-4 transition-colors hover:border-emerald-500/30 hover:bg-slate-900/50"
                       >
                         <div className="flex-1">
                           <p className="text-sm font-medium text-white">
@@ -510,12 +639,24 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     {raffles.map((raffle) => (
                       <button
-                        key={raffle.id}
-                        onClick={() => router.push(`/${slug}`)}
-                        className="rounded-lg border border-white/10 bg-slate-900/30 p-4 text-left transition-colors hover:border-red-500/50 hover:bg-slate-900/50"
+                        key={raffle.id || raffle.slug}
+                        onClick={() => {
+                          setSelectedRaffleForTickets(raffle);
+                          setIsTicketsModalOpen(true);
+                        }}
+                        className="overflow-hidden rounded-lg border border-white/10 bg-slate-900/30 text-left transition-colors hover:border-red-500/50 hover:bg-slate-900/50"
                       >
-                        <p className="font-medium text-white">{raffle.title}</p>
-                        <p className="text-xs text-slate-400 mt-1">Clique para visualizar</p>
+                        <div className="relative h-24 w-full bg-slate-800/60">
+                          {raffle.image ? (
+                            <img
+                              src={raffle.image}
+                              alt={raffle.title}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : null}
+                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/30 to-transparent" />
+                          <p className="absolute bottom-2 left-3 text-sm font-semibold text-white">{raffle.title}</p>
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -530,6 +671,144 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
           )}
         </div>
       </main>
+
+      {isBoxModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-slate-900/95 p-5 shadow-2xl">
+            {boxModalPhase === "opening" ? (
+              <div className="flex flex-col items-center gap-4 text-center">
+                <motion.div
+                  animate={{ rotate: [0, 8, -8, 0], scale: [1, 1.06, 1] }}
+                  transition={{ duration: 0.9, repeat: Infinity }}
+                  className="flex h-20 w-20 items-center justify-center rounded-xl border border-emerald-400/40 bg-emerald-500/15"
+                >
+                  <Gift size={34} className="text-emerald-300" />
+                </motion.div>
+                <p className="text-sm font-medium text-emerald-200">Abrindo sua caixa...</p>
+                <p className="text-xs text-slate-400">Validando regras de seguranca no servidor.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center justify-between w-full pb-3 border-b border-white/10">
+                  <p className="text-xs uppercase tracking-wide font-semibold text-slate-300">Resultado da Caixa</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsBoxModalOpen(false)}
+                    className="text-slate-400 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="w-full rounded-xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/30 p-4 flex items-center gap-3">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex-shrink-0">
+                    <Gift size={28} className="text-emerald-300" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-semibold text-white leading-tight">{boxModalMessage}</p>
+                    <p className="text-xs text-emerald-300 mt-1">✓ Resgatado</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsBoxModalOpen(false)}
+                  className="mt-2 w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-[#0B1120] hover:bg-emerald-400 transition-colors"
+                >
+                  Fechar
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {isTicketsModalOpen && selectedRaffleForTickets ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4"
+          onClick={() => {
+            setIsTicketsModalOpen(false);
+            setSelectedRaffleForTickets(null);
+          }}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl border border-white/10 bg-slate-900/95 p-5 shadow-2xl max-h-[80vh] overflow-y-auto"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/10">
+              <h3 className="text-lg font-semibold text-white">{selectedRaffleForTickets.title}</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsTicketsModalOpen(false);
+                  setSelectedRaffleForTickets(null);
+                }}
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {selectedRaffleTickets && selectedRaffleTickets.length > 0 ? (
+              <div>
+                <p className="text-xs text-slate-400 mb-3 font-medium">
+                  {selectedRaffleTickets.length} número{selectedRaffleTickets.length !== 1 ? "s" : ""} cadastrado{selectedRaffleTickets.length !== 1 ? "s" : ""}
+                </p>
+                {selectedRaffleForTickets.status === "FINISHED" ? (
+                  <p className="mb-3 text-xs text-slate-400">
+                    Rifa finalizada: números desativados
+                    {selectedRaffleForTickets.winnerTicketNumber
+                      ? ` e número vencedor em destaque (${selectedRaffleForTickets.winnerTicketNumber}).`
+                      : "."}
+                  </p>
+                ) : null}
+                {selectedRaffleWinningTicket ? (
+                  <div className="mb-3 rounded-lg border border-amber-300/50 bg-amber-400/20 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-amber-100">
+                    Seu número vencedor: {selectedRaffleWinningTicket}
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                  {selectedRaffleTickets.map((ticket) => {
+                    const isFinished = selectedRaffleForTickets.status === "FINISHED";
+                    const winnerNumber = selectedRaffleForTickets.winnerTicketNumber ?? null;
+                    const isHighlighted = Boolean(isFinished && winnerNumber && ticket.number === winnerNumber);
+                    
+                    return (
+                      <div
+                        key={ticket.id}
+                        className={`flex items-center justify-center rounded-lg border p-2 text-center text-sm font-semibold transition-all ${
+                          isHighlighted
+                            ? "border-amber-300/60 bg-amber-400/20 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.25)]"
+                            : isFinished
+                              ? "border-slate-500/20 bg-slate-900/30 text-slate-500"
+                              : "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
+                        }`}
+                      >
+                        {ticket.number}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-400 text-center py-6">
+                Nenhum bilhete encontrado para essa rifa
+              </p>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsTicketsModalOpen(false);
+                setSelectedRaffleForTickets(null);
+              }}
+              className="mt-4 w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-[#0B1120] hover:bg-emerald-400 transition-colors"
+            >
+              Fechar
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <Footer />
     </div>
   );
 }

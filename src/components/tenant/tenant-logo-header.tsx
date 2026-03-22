@@ -9,15 +9,16 @@ interface TenantLogoHeaderProps {
   href: string;
   logoUrl?: string | null;
   tenantName?: string;
+  compact?: boolean;
 }
 
-export function TenantLogoHeader({ href, logoUrl, tenantName }: TenantLogoHeaderProps) {
+export function TenantLogoHeader({ href, logoUrl, tenantName, compact = false }: TenantLogoHeaderProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="mb-6 flex items-center gap-3"
+      className={`${compact ? "mb-0" : "mb-6"} flex items-center gap-3`}
     >
       <Link
         href={href}

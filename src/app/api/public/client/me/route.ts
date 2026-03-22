@@ -2,6 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/database/prisma";
 import { getClientAuthUser } from "@/lib/auth/mddleware";
 
+function getUnlockedBoxes(ticketCount: number): number {
+  if (ticketCount >= 1200) return 6;
+  if (ticketCount >= 600) return 2;
+  if (ticketCount >= 400) return 1;
+  return 0;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const authClient = await getClientAuthUser();
@@ -45,6 +52,11 @@ export async function GET(request: NextRequest) {
                 slug: true,
               },
             },
+            ticket: {
+              select: {
+                number: true,
+              },
+            },
           },
         },
         tickets: {
@@ -58,6 +70,7 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 slug: true,
+                banner: true,
                 status: true,
                 drawDate: true,
               },
@@ -92,13 +105,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: "Cliente nao encontrado." }, { status: 404 });
     }
 
+    const winnerTicketByRaffleId = new Map<string, string>();
+    for (const award of client.awards) {
+      if (award.type !== "RAFFLE_WINNER" || !award.raffle?.id || !award.ticket?.number) {
+        continue;
+      }
+
+      winnerTicketByRaffleId.set(
+        award.raffle.id,
+        String(award.ticket.number).padStart(6, "0"),
+      );
+    }
+
     const raffleMap = new Map<string, {
-      raffleId: string;
-      raffleName: string;
-      raffleSlug: string;
-      raffleStatus: string;
+      id: string;
+      title: string;
+      slug: string;
+      image: string | null;
+      status: string;
+      winnerTicketNumber: string | null;
       drawDate: string | null;
       ticketsCount: number;
+      completedTicketsCount: number;
       lastTicketAt: string | null;
       totalSpent: number;
     }>();
@@ -106,12 +134,15 @@ export async function GET(request: NextRequest) {
     for (const ticket of client.tickets) {
       const key = ticket.raffle.id;
       const current = raffleMap.get(key) || {
-        raffleId: ticket.raffle.id,
-        raffleName: ticket.raffle.name,
-        raffleSlug: ticket.raffle.slug,
-        raffleStatus: ticket.raffle.status,
+        id: ticket.raffle.id,
+        title: ticket.raffle.name,
+        slug: ticket.raffle.slug,
+        image: ticket.raffle.banner,
+        status: ticket.raffle.status,
+        winnerTicketNumber: winnerTicketByRaffleId.get(ticket.raffle.id) ?? null,
         drawDate: ticket.raffle.drawDate ? ticket.raffle.drawDate.toISOString() : null,
         ticketsCount: 0,
+        completedTicketsCount: 0,
         lastTicketAt: null,
         totalSpent: 0,
       };
@@ -123,6 +154,7 @@ export async function GET(request: NextRequest) {
       }
 
       if (ticket.payment && ticket.payment.status === "COMPLETED") {
+        current.completedTicketsCount += 1;
         const totalValue = Number(ticket.payment.totalValue);
         const amount = Math.max(ticket.payment.amount, 1);
         current.totalSpent += totalValue / amount;
@@ -130,6 +162,31 @@ export async function GET(request: NextRequest) {
 
       raffleMap.set(key, current);
     }
+
+    const boxCards = Array.from(raffleMap.values()).flatMap((raffleSummary) => {
+      const unlockedBoxes = getUnlockedBoxes(raffleSummary.completedTicketsCount);
+      if (unlockedBoxes <= 0) return [];
+
+      const openedAwards = client.awards
+        .filter((award) => award.type === "INSTANT_PRIZE" && award.raffle?.id === raffleSummary.id)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+
+      return Array.from({ length: unlockedBoxes }, (_, index) => {
+        const openedAward = openedAwards[index] ?? null;
+        const isOpened = Boolean(openedAward);
+
+        return {
+          id: `${raffleSummary.id}-box-${index + 1}`,
+          raffleId: raffleSummary.id,
+          raffleTitle: raffleSummary.title,
+          raffleImage: raffleSummary.image,
+          boxNumber: index + 1,
+          status: isOpened ? "OPENED" : "AVAILABLE",
+          prizeTitle: openedAward?.name ?? null,
+          openedAt: openedAward?.createdAt.toISOString() ?? null,
+        };
+      });
+    });
 
     return NextResponse.json({
       success: true,
@@ -176,6 +233,7 @@ export async function GET(request: NextRequest) {
           : null,
       })),
       raffles: Array.from(raffleMap.values()).sort((a, b) => (b.lastTicketAt || "").localeCompare(a.lastTicketAt || "")),
+      boxes: boxCards,
       payments: client.payments.map((payment) => ({
         id: payment.id,
         status: payment.status,

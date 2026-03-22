@@ -93,6 +93,10 @@ export default async function Tenant({ params }: TenantProps) {
     mysteryBoxConfig: null,
     winnerId: null,
     pixText: activeRaffle.pixValue.toString(),
+    collaboratorPrizesEnabled: activeRaffle.collaboratorPrizesEnabled,
+    collaboratorPrizeFirst: activeRaffle.collaboratorPrizeFirst !== null ? Number(activeRaffle.collaboratorPrizeFirst) : null,
+    collaboratorPrizeSecond: activeRaffle.collaboratorPrizeSecond !== null ? Number(activeRaffle.collaboratorPrizeSecond) : null,
+    collaboratorPrizeThird: activeRaffle.collaboratorPrizeThird !== null ? Number(activeRaffle.collaboratorPrizeThird) : null,
     mysteryPrizes: []
   } : null;
 

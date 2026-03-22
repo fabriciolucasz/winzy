@@ -4,7 +4,7 @@ import { useApp } from "@/contexts";
 import { motion } from "motion/react";
 import Image from "next/image";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { Award, BadgeCheck, CircleHelp, Gift, Instagram, MessageCircle, Minus, Plus, ShoppingBag, Ticket, Trophy, Users, X } from "lucide-react";
+import { BadgeCheck, Check, CircleHelp, Gift, Instagram, MessageCircle, Minus, Plus, ShoppingBag, Ticket, Trophy, Users, User, X } from "lucide-react";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useEffect, useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -29,9 +29,18 @@ type MysteryPrize = {
   id: string;
   title: string;
   description: string | null;
+  value: number;
+  prizeType: "MONETARY" | "PHYSICAL";
   chance?: number;
   remaining: number;
   totalAmount: number;
+};
+
+type RankPrizeCard = {
+  positionLabel: string;
+  positionColorClass: string;
+  cardClass: string;
+  prizeLabel: string;
 };
 
 type PixPaymentInfo = {
@@ -83,6 +92,7 @@ export function Raffle() {
   const [pendingPaymentOffer, setPendingPaymentOffer] = useState<PixPaymentInfo | null>(null);
   const [pixDialogOpen, setPixDialogOpen] = useState(false);
   const [pixDialogMinimized, setPixDialogMinimized] = useState(false);
+  const [activeRankCard, setActiveRankCard] = useState<string | null>(null);
 
   function getUnlockedBoxesByTickets(totalTickets: number): number {
     if (totalTickets >= 1200) return 6;
@@ -109,11 +119,17 @@ export function Raffle() {
   }, [tenant?.slug]);
 
   const handleQuantitySelect = (qty: number) => {
-    setTicketCount(prev => prev + qty);
+    setTicketCount(prev => {
+      const newCount = Math.max(raffle?.minNumbers ?? 1, prev + qty);
+      return Math.min(newCount, 2000); // Limita a 2000 bilhetes
+    });
   };
 
   const handleIncrease = () => {
-    setTicketCount(prev => prev + 1);
+    setTicketCount(prev => {
+      const newCount = prev + 1;
+      return Math.min(newCount, 2000); // Limita a 2000 bilhetes
+    });
   };
 
   const handleDecrease = () => {
@@ -147,6 +163,34 @@ export function Raffle() {
     { boxes: 2, minTickets: 600 },
     { boxes: 6, minTickets: 1200 },
   ];
+
+  const rankPrizeCards = useMemo<RankPrizeCard[]>(() => {
+    const labels = ["1º", "2º", "3º"];
+    const positionColorClasses = ["text-yellow-400", "text-gray-400", "text-yellow-700"];
+    const cardClasses = ["bg-yellow-500/10", "bg-gray-500/10", "bg-yellow-700/10"];
+    const prizeValues = [
+      raffle?.collaboratorPrizeFirst ?? null,
+      raffle?.collaboratorPrizeSecond ?? null,
+      raffle?.collaboratorPrizeThird ?? null,
+    ];
+
+    return labels.map((label, index) => {
+      const value = prizeValues[index];
+      const hasPrize = typeof value === "number" && value > 0;
+
+      return {
+        positionLabel: label,
+        positionColorClass: positionColorClasses[index],
+        cardClass: cardClasses[index],
+        prizeLabel: hasPrize ? formatCurrency(value) : "Nao definido",
+      };
+    });
+  }, [
+    raffle?.collaboratorPrizesEnabled,
+    raffle?.collaboratorPrizeFirst,
+    raffle?.collaboratorPrizeSecond,
+    raffle?.collaboratorPrizeThird,
+  ]);
 
   if (!raffle) return null;
 
@@ -356,6 +400,16 @@ export function Raffle() {
         </div>
       </div>
 
+      {/* Botão Ver Meus Bilhetes */}
+      {user && (
+        <div className="mx-auto w-full max-w-2xl">
+          <a href={`/${tenant?.slug}/profile`} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-emerald-500/20 to-emerald-600/20 px-4 py-2 text-emerald-400 font-medium hover:from-emerald-500/30 hover:to-emerald-600/30 transition-colors border border-emerald-500/30">
+            <User size={16} />
+            Ver meus bilhetes
+          </a>
+        </div>
+      )}
+
       {/* Descrição da Rifa */}
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
@@ -382,17 +436,30 @@ export function Raffle() {
         <p className="text-sm text-zinc-300">Um prêmio garantido para os maiores compradores!</p>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-yellow-500/10 p-4">
-            <span className="text-2xl font-bold text-yellow-400">1º</span>
-          </div>
+          {rankPrizeCards.map((card) => {
+            const isActive = activeRankCard === card.positionLabel;
 
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-gray-500/10 p-4">
-            <span className="text-2xl font-bold text-gray-400">2º</span>
-          </div>
-
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-yellow-700/10 p-4">
-            <span className="text-2xl font-bold text-yellow-700">3º</span>
-          </div>
+            return (
+              <button
+                key={card.positionLabel}
+                type="button"
+                onClick={() => setActiveRankCard((prev) => (prev === card.positionLabel ? null : card.positionLabel))}
+                className="group h-20 cursor-pointer [perspective:1000px]"
+                aria-label={`Mostrar premio do ${card.positionLabel}`}
+              >
+                <div className={`relative h-full w-full rounded-lg border border-white/5 ${card.cardClass}`}>
+                  <div className={`absolute inset-0 transition-transform duration-500 [transform-style:preserve-3d] sm:group-hover:[transform:rotateY(180deg)] will-change-transform ${isActive ? "[transform:rotateY(180deg)]" : ""}`}>
+                    <div className="absolute inset-0 flex items-center justify-center [backface-visibility:hidden]">
+                      <span className={`text-2xl font-bold ${card.positionColorClass}`}>{card.positionLabel}</span>
+                    </div>
+                    <div className="absolute inset-0 flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] px-2 text-center">
+                      <span className="text-sm font-bold text-zinc-100">{card.prizeLabel}</span>
+                    </div>
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         <div className="border-t border-slate-500/5">
@@ -469,38 +536,60 @@ export function Raffle() {
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
         <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
           <div className="flex items-center">
-            <Award size={16} className="mr-2 text-emerald-400" />
+            <Gift size={16} className="mr-2 text-emerald-400" />
             <h2 className="text-lg font-mono text-emerald-400 uppercase">Prêmios das Caixas</h2>
           </div>
           <span className="text-xs font-mono uppercase text-zinc-500">
-            {prizes.length} disponíveis
+            {prizes.filter(p => p.remaining > 0).length} disponíveis
           </span>
         </div>
 
         {prizes.length === 0 ? (
-          <p className="text-xs text-zinc-500">Nenhum prêmio disponível no momento.</p>
+          <div className="flex items-center justify-center py-6">
+            <p className="text-sm text-slate-400">Nenhum prêmio disponível no momento.</p>
+          </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            {prizes.map((prize) => (
-              <div
-                key={prize.id}
-                className="flex flex-col gap-2 rounded-lg border border-white/5 bg-slate-800/40 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex flex-col">
-                  <span className="text-sm font-mono uppercase text-zinc-200">{prize.title}</span>
-                  {prize.description ? (
-                    <span className="text-xs text-zinc-500">{prize.description}</span>
-                  ) : null}
-                  {typeof prize.chance === "number" ? (
-                    <span className="text-[11px] uppercase text-zinc-500">Chance: {(prize.chance * 100).toFixed(2)}%</span>
-                  ) : null}
+          <div className="space-y-2">
+            {prizes.map((prize) => {
+              const isAvailable = prize.remaining > 0;
+              return (
+                <div
+                  key={prize.id}
+                  className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-all ${
+                    isAvailable
+                      ? "border-emerald-400/30 bg-gradient-to-r from-emerald-500/5 to-slate-900/20 hover:border-emerald-400/50"
+                      : "border-slate-500/20 bg-slate-900/30 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0 ${
+                      isAvailable
+                        ? "bg-emerald-500/15 border-emerald-400/30"
+                        : "bg-slate-700/20 border-slate-500/20"
+                    }`}>
+                      {isAvailable ? (
+                        <Gift size={18} className="text-emerald-300" />
+                      ) : (
+                        <Check size={18} className="text-slate-500" />
+                      )}
+                    </div>
+                    <p className={`text-sm font-medium truncate ${isAvailable ? "text-white" : "text-slate-500"}`}>
+                      {prize.prizeType === "MONETARY" && prize.value > 0 
+                        ? formatCurrency(prize.value) 
+                        : prize.title}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className={`text-xs font-medium ${isAvailable ? "text-slate-400" : "text-slate-600"}`}>
+                      {isAvailable ? "DISPONÍVEL" : "RESGATADO"}
+                    </p>
+                    {isAvailable && (
+                      <p className="text-sm font-bold text-emerald-300">{prize.remaining}</p>
+                    )}
+                  </div>
                 </div>
-                <div className="text-left sm:text-right">
-                  <span className="block text-xs uppercase text-zinc-500">Restam</span>
-                  <span className="text-sm font-bold text-emerald-400">{prize.remaining}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -545,10 +634,17 @@ export function Raffle() {
           </motion.button>
         </div>
 
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          {[5, 10, 100].map((value) => (
+            <button key={`minus-${value}`} onClick={() => handleQuantitySelect(-value)} disabled={ticketCount <= raffle.minNumbers} className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-slate-800/40 p-3 text-zinc-200 tabular-nums sm:p-4 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity">
+              -{value}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center justify-center">
           <span className="text-xs uppercase font-mono text-zinc-500">O mínimo para compra é de {raffle.minNumbers} bilhete{raffle.minNumbers > 1 ? "s" : ""}</span>
         </div>
-
 
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-slate-800/40 px-4 py-4">
           <div className="flex flex-col">

@@ -35,6 +35,10 @@ type Raffle = {
   mysteryPrizes?: any[];
   winnerId?: string | null;
   pixText?: string | null;
+  collaboratorPrizesEnabled?: boolean;
+  collaboratorPrizeFirst?: number | null;
+  collaboratorPrizeSecond?: number | null;
+  collaboratorPrizeThird?: number | null;
 };
 
 type User = {

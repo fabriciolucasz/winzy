@@ -555,18 +555,16 @@ export function Raffle() {
               return (
                 <div
                   key={prize.id}
-                  className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-all ${
-                    isAvailable
+                  className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-all ${isAvailable
                       ? "border-emerald-400/30 bg-gradient-to-r from-emerald-500/5 to-slate-900/20 hover:border-emerald-400/50"
                       : "border-slate-500/20 bg-slate-900/30 opacity-60"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0 ${
-                      isAvailable
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0 ${isAvailable
                         ? "bg-emerald-500/15 border-emerald-400/30"
                         : "bg-slate-700/20 border-slate-500/20"
-                    }`}>
+                      }`}>
                       {isAvailable ? (
                         <Gift size={18} className="text-emerald-300" />
                       ) : (
@@ -574,8 +572,8 @@ export function Raffle() {
                       )}
                     </div>
                     <p className={`text-sm font-medium truncate ${isAvailable ? "text-white" : "text-slate-500"}`}>
-                      {prize.prizeType === "MONETARY" && prize.value > 0 
-                        ? formatCurrency(prize.value) 
+                      {prize.prizeType === "MONETARY" && prize.value > 0
+                        ? formatCurrency(prize.value)
                         : prize.title}
                     </p>
                   </div>

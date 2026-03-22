@@ -118,7 +118,7 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
   const [boxModalMessage, setBoxModalMessage] = useState("");
   const [isOpeningBox, setIsOpeningBox] = useState(false);
   const [isTicketsModalOpen, setIsTicketsModalOpen] = useState(false);
-  const [selectedRaffleForTickets, setSelectedRaffleForTickets] = useState<MeResponse["raffles"][0] | null>(null);
+  const [selectedRaffleForTickets, setSelectedRaffleForTickets] = useState<NonNullable<MeResponse["raffles"]>[number] | null>(null);
 
   function maskCPF(value: string): string {
     const digits = String(value || "").replace(/\D/g, "");
@@ -527,8 +527,8 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                         onClick={() => handleBoxClick(box)}
                         disabled={isOpeningBox && activeBoxId === box.id}
                         className={`rounded-lg border p-4 transition-colors ${box.status === "OPENED"
-                            ? "border-white/10 bg-slate-900/25 opacity-75"
-                            : "border-emerald-400/40 bg-emerald-500/10"
+                          ? "border-white/10 bg-slate-900/25 opacity-75"
+                          : "border-emerald-400/40 bg-emerald-500/10"
                           }`}
                       >
                         <div className="flex items-center gap-3">
@@ -770,17 +770,16 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                     const isFinished = selectedRaffleForTickets.status === "FINISHED";
                     const winnerNumber = selectedRaffleForTickets.winnerTicketNumber ?? null;
                     const isHighlighted = Boolean(isFinished && winnerNumber && ticket.number === winnerNumber);
-                    
+
                     return (
                       <div
                         key={ticket.id}
-                        className={`flex items-center justify-center rounded-lg border p-2 text-center text-sm font-semibold transition-all ${
-                          isHighlighted
+                        className={`flex items-center justify-center rounded-lg border p-2 text-center text-sm font-semibold transition-all ${isHighlighted
                             ? "border-amber-300/60 bg-amber-400/20 text-amber-100 shadow-[0_0_18px_rgba(251,191,36,0.25)]"
                             : isFinished
                               ? "border-slate-500/20 bg-slate-900/30 text-slate-500"
                               : "border-emerald-400/30 bg-emerald-500/10 text-emerald-300"
-                        }`}
+                          }`}
                       >
                         {ticket.number}
                       </div>

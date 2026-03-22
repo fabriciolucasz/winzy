@@ -45,15 +45,15 @@ model Profile {
 // --- ESTRUTURA SAAS (TENANT) ---
 
 model PlanType {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  description String?  @db.Text
-  maxRaffles  Int      @default(10)
-  maxTickets  Int      @default(10000)
-  priceMonthly Decimal @db.Decimal(10, 2)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(uuid())
+  name         String   @unique
+  description  String?  @db.Text
+  maxRaffles   Int      @default(10)
+  maxTickets   Int      @default(10000)
+  priceMonthly Decimal  @db.Decimal(10, 2)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   subscription Subscription?
 
@@ -61,17 +61,17 @@ model PlanType {
 }
 
 model Subscription {
-  id           String    @id @default(uuid())
-  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  tenantId     String    @unique
-  plan         PlanType  @relation(fields: [planTypeId], references: [id], onDelete: Restrict)
-  planTypeId   String    @unique
-  status       SubscriptionStatus @default(ACTIVE)
-  startDate    DateTime  @default(now())
-  renewalDate  DateTime?
-  canceledAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  id          String             @id @default(uuid())
+  tenant      Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId    String             @unique
+  plan        PlanType           @relation(fields: [planTypeId], references: [id], onDelete: Restrict)
+  planTypeId  String             @unique
+  status      SubscriptionStatus @default(ACTIVE)
+  startDate   DateTime           @default(now())
+  renewalDate DateTime?
+  canceledAt  DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
 
   @@index([status])
   @@map("subscriptions")

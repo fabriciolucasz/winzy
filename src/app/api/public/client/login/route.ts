@@ -33,10 +33,10 @@ export async function POST(request: NextRequest) {
     // Validar se o tenant tem uma subscrição ativa
     if (!tenant.subscription || tenant.subscription.status !== "ACTIVE") {
       return NextResponse.json(
-        { 
-          success: false, 
-          error: "A plataforma nao esta ativa para esta organizacao. Contate o administrador." 
-        }, 
+        {
+          success: false,
+          error: "A plataforma nao esta ativa para esta organizacao. Contate o administrador."
+        },
         { status: 403 }
       );
     }

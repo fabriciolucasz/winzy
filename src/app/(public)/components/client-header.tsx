@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { LogOut, Menu, X } from "lucide-react";
 
-export function ClientHeader({ tenantName, tenantSlug, clientName }: { 
+export function ClientHeader({ tenantName, tenantSlug, clientName }: {
   tenantName: string;
   tenantSlug: string;
   clientName?: string;
@@ -25,13 +25,13 @@ export function ClientHeader({ tenantName, tenantSlug, clientName }: {
 
             <div className="hidden md:flex items-center gap-4">
               <nav className="flex gap-6">
-                <Link 
+                <Link
                   href={`/${tenantSlug}/profile`}
                   className="text-sm text-slate-300 transition-colors hover:text-cyan-400"
                 >
                   Perfil
                 </Link>
-                <Link 
+                <Link
                   href={`/${tenantSlug}`}
                   className="text-sm text-slate-300 transition-colors hover:text-cyan-400"
                 >
@@ -69,14 +69,14 @@ export function ClientHeader({ tenantName, tenantSlug, clientName }: {
         {menuOpen && (
           <div className="border-t border-slate-700/50 bg-slate-900 md:hidden">
             <nav className="flex flex-col gap-3 px-4 py-4">
-              <Link 
+              <Link
                 href={`/${tenantSlug}/profile`}
                 className="text-sm text-slate-300 transition-colors hover:text-cyan-400"
                 onClick={() => setMenuOpen(false)}
               >
                 Perfil
               </Link>
-              <Link 
+              <Link
                 href={`/${tenantSlug}`}
                 className="text-sm text-slate-300 transition-colors hover:text-cyan-400"
                 onClick={() => setMenuOpen(false)}

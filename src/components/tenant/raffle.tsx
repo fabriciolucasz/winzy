@@ -94,10 +94,14 @@ export function Raffle() {
   const [pixDialogMinimized, setPixDialogMinimized] = useState(false);
   const [activeRankCard, setActiveRankCard] = useState<string | null>(null);
 
-  function getUnlockedBoxesByTickets(totalTickets: number): number {
-    if (totalTickets >= 1200) return 6;
-    if (totalTickets >= 600) return 2;
-    if (totalTickets >= 400) return 1;
+  /**
+   * Calcula caixas ganhas para uma quantidade específica de bilhetes.
+   * Máximo 6 caixas por lote de compra.
+   */
+  function getBoxesFromTickets(ticketCount: number): number {
+    if (ticketCount >= 1200) return 6;
+    if (ticketCount >= 600) return 2;
+    if (ticketCount >= 400) return 1;
     return 0;
   }
 
@@ -474,178 +478,178 @@ export function Raffle() {
       {/* Ranking */}
       {showCollaboratorRanking ? (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
-        <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
-          <div className="flex items-center">
-            <Users size={16} className="mr-2 text-emerald-400" />
-            <h2 className="text-lg font-mono text-emerald-400 uppercase">Ranking dos Colaboradores</h2>
-          </div>
-        </div>
-
-        <p className="text-sm text-zinc-300">Um prêmio garantido para os maiores compradores!</p>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          {rankPrizeCards.map((card) => {
-            const isActive = activeRankCard === card.positionLabel;
-
-            return (
-              <button
-                key={card.positionLabel}
-                type="button"
-                onClick={() => setActiveRankCard((prev) => (prev === card.positionLabel ? null : card.positionLabel))}
-                className="group h-20 cursor-pointer [perspective:1000px]"
-                aria-label={`Mostrar premio do ${card.positionLabel}`}
-              >
-                <div className={`relative h-full w-full rounded-lg border border-white/5 ${card.cardClass}`}>
-                  <div className={`absolute inset-0 transition-transform duration-500 [transform-style:preserve-3d] sm:group-hover:[transform:rotateY(180deg)] will-change-transform ${isActive ? "[transform:rotateY(180deg)]" : ""}`}>
-                    <div className="absolute inset-0 flex items-center justify-center [backface-visibility:hidden]">
-                      <span className={`text-2xl font-bold ${card.positionColorClass}`}>{card.positionLabel}</span>
-                    </div>
-                    <div className="absolute inset-0 flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] px-2 text-center">
-                      <span className="text-sm font-bold text-zinc-100">{card.prizeLabel}</span>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="border-t border-slate-500/5">
-          {rankingList.length === 0 ? (
-            <p className="text-center text-xs text-stone-500 py-4">Nenhum colaborador ainda.</p>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-white/5 bg-transparent">
-              <div className="grid grid-cols-[80px_1fr_120px_120px] gap-2 px-4 py-3 bg-transparent border-b border-white/5 border-dashed">
-                <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Colocação</span>
-                <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Nome</span>
-                <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Bilhete</span>
-                <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Prêmio</span>
-              </div>
-              {rankingList.slice(0, 3).map((u, idx) => (
-                <div
-                  key={u.position}
-                  className={`grid grid-cols-[80px_1fr_120px_120px] gap-2 items-center px-4 py-3 transition-colors ${idx !== 0 ? 'border-t border-white/5' : ''} bg-transparent`}
-                >
-                  <div className="flex items-center justify-center">
-                    <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-black ${u.color ?? 'border-white/10 bg-white/5 text-stone-400'
-                      }`}>
-                      {u.position <= 3 ? <Trophy size={14} /> : u.position}
-                    </span>
-                  </div>
-                  <span className="text-xs font-medium text-stone-300 truncate text-center">{u.name}</span>
-                  <span className="text-[11px] font-bold text-stone-300 tabular-nums text-center">
-                    {u.tickets.toLocaleString('pt-BR')} {u.tickets === 1 ? "bilhete" : "bilhetes"}
-                  </span>
-                  <span className="text-[11px] font-semibold text-stone-300 truncate text-center">{rankingPrizeByPosition[u.position] ?? "Nao definido"}</span>
-                </div>
-              ))}
-              {user && (
-                <div className="py-2.5 text-center bg-transparent border-t border-white/5">
-                  {userRankingPosition ? (
-                    <>
-                      <p className="text-[9px] text-stone-500 font-medium">Sua posicao: #{userRankingPosition.position}</p>
-                      <p className="text-[10px] text-stone-400">{userRankingPosition.tickets.toLocaleString("pt-BR")} bilhetes</p>
-                    </>
-                  ) : (
-                    <p className="text-[10px] text-stone-400">Voce ainda nao possui bilhetes para entrar no ranking.</p>
-                  )}
-                </div>
-              )}
+          <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
+            <div className="flex items-center">
+              <Users size={16} className="mr-2 text-emerald-400" />
+              <h2 className="text-lg font-mono text-emerald-400 uppercase">Ranking dos Colaboradores</h2>
             </div>
-          )}
-        </div>
+          </div>
+
+          <p className="text-sm text-zinc-300">Um prêmio garantido para os maiores compradores!</p>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            {rankPrizeCards.map((card) => {
+              const isActive = activeRankCard === card.positionLabel;
+
+              return (
+                <button
+                  key={card.positionLabel}
+                  type="button"
+                  onClick={() => setActiveRankCard((prev) => (prev === card.positionLabel ? null : card.positionLabel))}
+                  className="group h-20 cursor-pointer [perspective:1000px]"
+                  aria-label={`Mostrar premio do ${card.positionLabel}`}
+                >
+                  <div className={`relative h-full w-full rounded-lg border border-white/5 ${card.cardClass}`}>
+                    <div className={`absolute inset-0 transition-transform duration-500 [transform-style:preserve-3d] sm:group-hover:[transform:rotateY(180deg)] will-change-transform ${isActive ? "[transform:rotateY(180deg)]" : ""}`}>
+                      <div className="absolute inset-0 flex items-center justify-center [backface-visibility:hidden]">
+                        <span className={`text-2xl font-bold ${card.positionColorClass}`}>{card.positionLabel}</span>
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-center [transform:rotateY(180deg)] [backface-visibility:hidden] px-2 text-center">
+                        <span className="text-sm font-bold text-zinc-100">{card.prizeLabel}</span>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="border-t border-slate-500/5">
+            {rankingList.length === 0 ? (
+              <p className="text-center text-xs text-stone-500 py-4">Nenhum colaborador ainda.</p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-white/5 bg-transparent">
+                <div className="grid grid-cols-[80px_1fr_120px_120px] gap-2 px-4 py-3 bg-transparent border-b border-white/5 border-dashed">
+                  <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Colocação</span>
+                  <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Nome</span>
+                  <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Bilhete</span>
+                  <span className="text-[9px] font-bold text-stone-500 tracking-[0.2em] uppercase text-center">Prêmio</span>
+                </div>
+                {rankingList.slice(0, 3).map((u, idx) => (
+                  <div
+                    key={u.position}
+                    className={`grid grid-cols-[80px_1fr_120px_120px] gap-2 items-center px-4 py-3 transition-colors ${idx !== 0 ? 'border-t border-white/5' : ''} bg-transparent`}
+                  >
+                    <div className="flex items-center justify-center">
+                      <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-xs font-black ${u.color ?? 'border-white/10 bg-white/5 text-stone-400'
+                        }`}>
+                        {u.position <= 3 ? <Trophy size={14} /> : u.position}
+                      </span>
+                    </div>
+                    <span className="text-xs font-medium text-stone-300 truncate text-center">{u.name}</span>
+                    <span className="text-[11px] font-bold text-stone-300 tabular-nums text-center">
+                      {u.tickets.toLocaleString('pt-BR')} {u.tickets === 1 ? "bilhete" : "bilhetes"}
+                    </span>
+                    <span className="text-[11px] font-semibold text-stone-300 truncate text-center">{rankingPrizeByPosition[u.position] ?? "Nao definido"}</span>
+                  </div>
+                ))}
+                {user && (
+                  <div className="py-2.5 text-center bg-transparent border-t border-white/5">
+                    {userRankingPosition ? (
+                      <>
+                        <p className="text-[9px] text-stone-500 font-medium">Sua posicao: #{userRankingPosition.position}</p>
+                        <p className="text-[10px] text-stone-400">{userRankingPosition.tickets.toLocaleString("pt-BR")} bilhetes</p>
+                      </>
+                    ) : (
+                      <p className="text-[10px] text-stone-400">Voce ainda nao possui bilhetes para entrar no ranking.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
 
       {/* Caixa Misteriosa */}
       {hasConfiguredMysteryPrizes && hasAvailableMysteryPrizes ? (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
-        <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
-          <div className="flex items-center">
-            <ShoppingBag size={16} className="mr-2 text-emerald-400" />
-            <h2 className="text-lg font-mono text-emerald-400 uppercase">Caixa Mistériosa</h2>
-          </div>
-        </div>
-
-        <p className="text-sm text-zinc-300">Ganhe caixas ao comprar em grandes quantidades e concorra a prêmios instantâneos!</p>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
-          {mysteryBoxRules.map((rule) => (
-            <div
-              key={`${rule.boxes}-${rule.minTickets}`}
-              className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-slate-800/40 p-4"
-            >
-              <span className="text-sm font-mono uppercase text-zinc-300">
-                {rule.boxes} {rule.boxes === 1 ? "caixa" : "caixas"}
-              </span>
-              <span className="text-xs font-mono uppercase text-zinc-500">
-                {rule.minTickets} bilhetes
-              </span>
+          <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
+            <div className="flex items-center">
+              <ShoppingBag size={16} className="mr-2 text-emerald-400" />
+              <h2 className="text-lg font-mono text-emerald-400 uppercase">Caixa Mistériosa</h2>
             </div>
-          ))}
-        </div>
+          </div>
+
+          <p className="text-sm text-zinc-300">Ganhe caixas ao comprar em grandes quantidades e concorra a prêmios instantâneos!</p>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+            {mysteryBoxRules.map((rule) => (
+              <div
+                key={`${rule.boxes}-${rule.minTickets}`}
+                className="flex flex-col items-center gap-2 rounded-lg border border-white/5 bg-slate-800/40 p-4"
+              >
+                <span className="text-sm font-mono uppercase text-zinc-300">
+                  {rule.boxes} {rule.boxes === 1 ? "caixa" : "caixas"}
+                </span>
+                <span className="text-xs font-mono uppercase text-zinc-500">
+                  {rule.minTickets} bilhetes
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       ) : null}
 
       {/* Premio da Caixa Misteriosa */}
       {hasConfiguredMysteryPrizes ? (
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 rounded-2xl border border-slate-500/5 bg-slate-800/40 p-4 shadow-lg backdrop-blur-xl sm:p-6">
-        <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
-          <div className="flex items-center">
-            <Gift size={16} className="mr-2 text-emerald-400" />
-            <h2 className="text-lg font-mono text-emerald-400 uppercase">Prêmios das Caixas</h2>
+          <div className="flex items-center border-b border-slate-500/5 pb-2 justify-between">
+            <div className="flex items-center">
+              <Gift size={16} className="mr-2 text-emerald-400" />
+              <h2 className="text-lg font-mono text-emerald-400 uppercase">Prêmios das Caixas</h2>
+            </div>
+            <span className="text-xs font-mono uppercase text-zinc-500">
+              {prizes.filter(p => p.remaining > 0).length} disponíveis
+            </span>
           </div>
-          <span className="text-xs font-mono uppercase text-zinc-500">
-            {prizes.filter(p => p.remaining > 0).length} disponíveis
-          </span>
-        </div>
 
-        {prizes.length === 0 ? (
-          <div className="flex items-center justify-center py-6">
-            <p className="text-sm text-slate-400">Nenhum prêmio disponível no momento.</p>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {prizes.map((prize) => {
-              const isAvailable = prize.remaining > 0;
-              return (
-                <div
-                  key={prize.id}
-                  className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-all ${isAvailable
-                    ? "border-emerald-400/30 bg-gradient-to-r from-emerald-500/5 to-slate-900/20 hover:border-emerald-400/50"
-                    : "border-slate-500/20 bg-slate-900/30 opacity-60"
-                    }`}
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0 ${isAvailable
-                      ? "bg-emerald-500/15 border-emerald-400/30"
-                      : "bg-slate-700/20 border-slate-500/20"
-                      }`}>
-                      {isAvailable ? (
-                        <Gift size={18} className="text-emerald-300" />
-                      ) : (
-                        <Check size={18} className="text-slate-500" />
+          {prizes.length === 0 ? (
+            <div className="flex items-center justify-center py-6">
+              <p className="text-sm text-slate-400">Nenhum prêmio disponível no momento.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {prizes.map((prize) => {
+                const isAvailable = prize.remaining > 0;
+                return (
+                  <div
+                    key={prize.id}
+                    className={`flex items-center justify-between gap-3 rounded-lg border p-3 transition-all ${isAvailable
+                      ? "border-emerald-400/30 bg-gradient-to-r from-emerald-500/5 to-slate-900/20 hover:border-emerald-400/50"
+                      : "border-slate-500/20 bg-slate-900/30 opacity-60"
+                      }`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-lg border flex-shrink-0 ${isAvailable
+                        ? "bg-emerald-500/15 border-emerald-400/30"
+                        : "bg-slate-700/20 border-slate-500/20"
+                        }`}>
+                        {isAvailable ? (
+                          <Gift size={18} className="text-emerald-300" />
+                        ) : (
+                          <Check size={18} className="text-slate-500" />
+                        )}
+                      </div>
+                      <p className={`text-sm font-medium truncate ${isAvailable ? "text-white" : "text-slate-500"}`}>
+                        {prize.prizeType === "MONETARY" && prize.value > 0
+                          ? formatCurrency(prize.value)
+                          : prize.title}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-xs font-medium ${isAvailable ? "text-slate-400" : "text-slate-600"}`}>
+                        {isAvailable ? "DISPONÍVEL" : "RESGATADO"}
+                      </p>
+                      {isAvailable && (
+                        <p className="text-sm font-bold text-emerald-300">{prize.remaining}</p>
                       )}
                     </div>
-                    <p className={`text-sm font-medium truncate ${isAvailable ? "text-white" : "text-slate-500"}`}>
-                      {prize.prizeType === "MONETARY" && prize.value > 0
-                        ? formatCurrency(prize.value)
-                        : prize.title}
-                    </p>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className={`text-xs font-medium ${isAvailable ? "text-slate-400" : "text-slate-600"}`}>
-                      {isAvailable ? "DISPONÍVEL" : "RESGATADO"}
-                    </p>
-                    {isAvailable && (
-                      <p className="text-sm font-bold text-emerald-300">{prize.remaining}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : null}
 
@@ -712,7 +716,7 @@ export function Raffle() {
                 <Gift size={16} className="text-zinc-500" />
               </div>
               <span className="text-xs font-mono uppercase text-zinc-500">
-                Você ganha<br />{getUnlockedBoxesByTickets(ticketCount)} caixa{getUnlockedBoxesByTickets(ticketCount) !== 1 ? "s" : ""}
+                Você ganha<br />{getBoxesFromTickets(ticketCount)} caixa{getBoxesFromTickets(ticketCount) !== 1 ? "s" : ""}
               </span>
             </div>
           ) : null}

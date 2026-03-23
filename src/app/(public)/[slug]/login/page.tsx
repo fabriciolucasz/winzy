@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getClientAuthUser } from "@/lib/auth/mddleware";
 import { prisma } from "@/lib/database/prisma";
 import { ClientLoginView } from "./login-client";
@@ -25,15 +25,24 @@ export default async function ClientLoginPage(props: { params: Params }) {
     select: {
       name: true,
       logo: true,
+      subscription: {
+        select: {
+          status: true,
+        },
+      },
     },
   });
+
+  if (!tenant || !tenant.subscription || tenant.subscription.status !== "ACTIVE") {
+    notFound();
+  }
 
   return (
     <ClientLoginView
       slug={slug}
       tenant={{
-        name: tenant?.name,
-        logoUrl: tenant?.logo ?? null,
+        name: tenant.name,
+        logoUrl: tenant.logo ?? null,
       }}
     />
   );

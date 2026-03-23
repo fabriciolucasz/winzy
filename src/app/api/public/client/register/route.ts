@@ -29,25 +29,11 @@ export async function POST(request: NextRequest) {
         id: true,
         slug: true,
         name: true,
-        subscription: {
-          select: { status: true }
-        }
       },
     });
 
     if (!tenant) {
       return NextResponse.json({ success: false, error: "Organizacao nao encontrada." }, { status: 404 });
-    }
-
-    // Validar se o tenant tem uma subscrição ativa
-    if (!tenant.subscription || tenant.subscription.status !== "ACTIVE") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "A plataforma nao esta ativa para esta organizacao. Contate o administrador."
-        },
-        { status: 403 }
-      );
     }
 
     const existingByEmail = await prisma.client.findFirst({

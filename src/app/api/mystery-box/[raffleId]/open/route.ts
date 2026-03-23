@@ -11,7 +11,11 @@ type PrizeCandidate = {
   remaining: number;
 };
 
-function getUnlockedBoxes(ticketCount: number): number {
+/**
+ * Calcula caixas ganhas para uma quantidade específica de bilhetes.
+ * Máximo 6 caixas por lote de compra.
+ */
+function getBoxesFromTickets(ticketCount: number): number {
   if (ticketCount >= 1200) return 6;
   if (ticketCount >= 600) return 2;
   if (ticketCount >= 400) return 1;
@@ -21,19 +25,34 @@ function getUnlockedBoxes(ticketCount: number): number {
 function pickWeightedPrize(prizes: PrizeCandidate[]): PrizeCandidate | null {
   if (prizes.length === 0) return null;
 
-  const totalChance = prizes.reduce((sum, prize) => sum + Math.max(prize.chance, 0), 0);
-  if (totalChance <= 0) return prizes[Math.floor(Math.random() * prizes.length)] ?? null;
+  // Fallback de 0.0010% quando chance for 0
+  const FALLBACK_CHANCE = 0.000001;
 
+  const prizeWeights = prizes.map(prize => ({
+    ...prize,
+    weight: Math.max(Number(prize.chance) || 0, FALLBACK_CHANCE),
+  }));
+
+  const totalChance = prizeWeights.reduce((sum, prize) => sum + prize.weight, 0);
+
+  // Se todas as chances são 0, seleciona aleatoriamente de forma uniforme
+  if (totalChance <= 0) {
+    const randomIndex = Math.floor(Math.random() * prizes.length);
+    return prizes[randomIndex] ?? null;
+  }
+
+  // Sorteio ponderado: gera número aleatório entre 0 e totalChance
   const target = Math.random() * totalChance;
   let cumulative = 0;
 
-  for (const prize of prizes) {
-    cumulative += Math.max(prize.chance, 0);
+  for (const prize of prizeWeights) {
+    cumulative += prize.weight;
     if (target <= cumulative) {
-      return prize;
+      return prizes.find(p => p.id === prize.id) ?? null;
     }
   }
 
+  // Fallback para o último prêmio (edge case)
   return prizes[prizes.length - 1] ?? null;
 }
 
@@ -149,17 +168,29 @@ async function openBoxSecure(args: { raffleId: string; tenantId: string; clientI
           };
         }
 
-        const completedTickets = await tx.ticket.count({
+        // Contar caixas ganhas somando cada pagamento individual
+        const completedPayments = await tx.payment.findMany({
           where: {
-            raffleId: raffle.id,
+            tenantId: raffle.tenantId,
             clientId: client.id,
-            payment: {
-              status: "COMPLETED",
+            status: "COMPLETED",
+          },
+          select: {
+            amount: true,
+            tickets: {
+              where: {
+                raffleId: raffle.id,
+              },
+              select: { id: true },
             },
           },
         });
 
-        const unlockedBoxes = getUnlockedBoxes(completedTickets);
+        // Somar caixas de cada payment individual baseado nos bilhetes daquela rifa
+        const unlockedBoxes = completedPayments.reduce((total, payment) => {
+          const raffleTicketsFromPayment = payment.tickets.length;
+          return total + getBoxesFromTickets(raffleTicketsFromPayment);
+        }, 0);
         const openedBoxes = await tx.award.count({
           where: {
             tenantId: raffle.tenantId,
@@ -176,7 +207,7 @@ async function openBoxSecure(args: { raffleId: string; tenantId: string; clientI
             error: "Voce ainda nao desbloqueou caixas misteriosas nesta rifa.",
             unlockedBoxes,
             openedBoxes,
-            completedTickets,
+            completedTickets: completedPayments.reduce((sum, p) => sum + p.tickets.length, 0),
           };
         }
 
@@ -187,7 +218,7 @@ async function openBoxSecure(args: { raffleId: string; tenantId: string; clientI
             error: "Todas as caixas disponiveis para esta faixa de tickets ja foram abertas.",
             unlockedBoxes,
             openedBoxes,
-            completedTickets,
+            completedTickets: completedPayments.reduce((sum, p) => sum + p.tickets.length, 0),
           };
         }
 
@@ -222,7 +253,7 @@ async function openBoxSecure(args: { raffleId: string; tenantId: string; clientI
             error: "Nao ha premios instantaneos disponiveis no momento.",
             unlockedBoxes,
             openedBoxes,
-            completedTickets,
+            completedTickets: completedPayments.reduce((sum, p) => sum + p.tickets.length, 0),
           };
         }
 
@@ -234,7 +265,7 @@ async function openBoxSecure(args: { raffleId: string; tenantId: string; clientI
             error: "Falha ao sortear premio.",
             unlockedBoxes,
             openedBoxes,
-            completedTickets,
+            completedTickets: completedPayments.reduce((sum, p) => sum + p.tickets.length, 0),
           };
         }
 
@@ -281,7 +312,7 @@ async function openBoxSecure(args: { raffleId: string; tenantId: string; clientI
           kind: "success" as const,
           unlockedBoxes,
           openedBoxes: openedBoxes + 1,
-          completedTickets,
+          completedTickets: completedPayments.reduce((sum, p) => sum + p.tickets.length, 0),
           prize: {
             id: selectedPrize.id,
             name: selectedPrize.name,

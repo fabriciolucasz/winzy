@@ -87,7 +87,10 @@ type OpenBoxApiResponse = {
   success?: boolean;
   error?: string;
   prize?: {
+    id?: string;
     name?: string;
+    value?: number;
+    remaining?: number;
   };
 };
 
@@ -266,9 +269,13 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
     setIsOpeningBox(true);
 
     try {
-      const response = await fetch(`/api/mystery-box/${box.raffleId}/open`, {
+      const response = await fetch(`/api/mystery-box/${box.raffleId}/open?t=${Date.now()}`, {
         method: "POST",
         credentials: "include",
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate",
+          "Pragma": "no-cache",
+        },
       });
 
       const data = (await response.json()) as OpenBoxApiResponse;
@@ -699,19 +706,83 @@ export function ClientProfileView({ slug, tenant }: ClientProfileViewProps) {
                     ✕
                   </button>
                 </div>
-                <div className="w-full rounded-xl border border-emerald-400/30 bg-gradient-to-br from-emerald-500/10 to-slate-900/30 p-4 flex items-center gap-3">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-emerald-500/20 border border-emerald-400/40 flex-shrink-0">
-                    <Gift size={28} className="text-emerald-300" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-semibold text-white leading-tight">{boxModalMessage}</p>
-                    <p className="text-xs text-emerald-300 mt-1">✓ Resgatado</p>
-                  </div>
-                </div>
+
+                {boxModalMessage && boxModalMessage.toLowerCase().includes("vazia") ? (
+                  // Caixa Vazia
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full rounded-xl border-2 border-slate-500/40 bg-gradient-to-br from-slate-700/20 to-slate-900/40 p-6 flex flex-col items-center gap-3 text-center"
+                  >
+                    <motion.div
+                      animate={{ y: [0, -4, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity }}
+                      className="flex h-16 w-16 items-center justify-center"
+                    >
+                      <div className="text-4xl">🪦</div>
+                    </motion.div>
+                    <div>
+                      <p className="text-lg font-bold text-slate-300 leading-tight">Nada... só vento!</p>
+                      <p className="text-xs text-slate-500 mt-2">Essa caixa veio vazia. Azar na próxima!</p>
+                    </div>
+                  </motion.div>
+                ) : boxModalMessage === "Nao há premios instantaneos disponiveis no momento." || boxModalMessage?.includes("esgotado") ? (
+                  // Prêmios Esgotados
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ duration: 0.5 }}
+                    className="w-full rounded-xl border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-amber-900/20 p-6 flex flex-col items-center gap-3 text-center"
+                  >
+                    <div className="flex h-16 w-16 items-center justify-center text-3xl">🏜️</div>
+                    <div>
+                      <p className="text-lg font-bold text-amber-200 leading-tight">Todos os prêmios acabaram!</p>
+                      <p className="text-xs text-amber-300/70 mt-2">Os prêmios desta rifa foram todos resgatados. Tente uma outra!</p>
+                    </div>
+                  </motion.div>
+                ) : (
+                  // Prêmio Normal ou Valioso
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0, rotateX: 90 }}
+                    animate={{ scale: 1, opacity: 1, rotateX: 0 }}
+                    transition={{ duration: 0.6, type: "spring" }}
+                    className={`w-full rounded-xl border-2 p-6 flex flex-col items-center gap-4 text-center ${boxModalMessage?.includes("R$") || boxModalMessage?.includes("iPhone")
+                        ? "border-amber-400/50 bg-gradient-to-br from-amber-500/20 via-amber-600/10 to-slate-900/30 shadow-lg shadow-amber-500/20"
+                        : "border-emerald-400/40 bg-gradient-to-br from-emerald-500/15 to-slate-900/25"
+                      }`}
+                  >
+                    <motion.div
+                      animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                      transition={{ duration: 1.2, repeat: Infinity }}
+                      className={`flex h-16 w-16 items-center justify-center rounded-lg border ${boxModalMessage?.includes("R$") || boxModalMessage?.includes("iPhone")
+                          ? "bg-amber-500/20 border-amber-400/60"
+                          : "bg-emerald-500/20 border-emerald-400/60"
+                        }`}
+                    >
+                      <Gift size={32} className={boxModalMessage?.includes("R$") || boxModalMessage?.includes("iPhone") ? "text-amber-300" : "text-emerald-300"} />
+                    </motion.div>
+                    <div>
+                      <p className={`text-xl font-bold leading-tight ${boxModalMessage?.includes("R$") || boxModalMessage?.includes("iPhone")
+                          ? "text-amber-100"
+                          : "text-emerald-100"
+                        }`}>
+                        {boxModalMessage}
+                      </p>
+                      <p className={`text-xs mt-2 ${boxModalMessage?.includes("R$") || boxModalMessage?.includes("iPhone")
+                          ? "text-amber-200/60"
+                          : "text-emerald-200/60"
+                        }`}>
+                        ✓ Prêmio resgatado com sucesso!
+                      </p>
+                    </div>
+                  </motion.div>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setIsBoxModalOpen(false)}
-                  className="mt-2 w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-[#0B1120] hover:bg-emerald-400 transition-colors"
+                  className="mt-4 w-full rounded-lg bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-[#0B1120] hover:bg-emerald-400 transition-colors"
                 >
                   Fechar
                 </button>

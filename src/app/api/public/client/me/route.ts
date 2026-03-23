@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/database/prisma";
 import { getClientAuthUser } from "@/lib/auth/mddleware";
 
-function getUnlockedBoxes(ticketCount: number): number {
+/**
+ * Calcula caixas ganhas para uma quantidade específica de bilhetes.
+ * Máximo 6 caixas por lote de compra.
+ */
+function getBoxesFromTickets(ticketCount: number): number {
   if (ticketCount >= 1200) return 6;
   if (ticketCount >= 600) return 2;
   if (ticketCount >= 400) return 1;
@@ -64,6 +68,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             number: true,
+            raffleId: true,
             createdAt: true,
             raffle: {
               select: {
@@ -189,12 +194,26 @@ export async function GET(request: NextRequest) {
         return [];
       }
 
-      const unlockedBoxes = getUnlockedBoxes(raffleSummary.completedTicketsCount);
+      // Calcular caixas ganhas somando cada pagamento individual nesta rifa
+      const paymentsForRaffle = client.payments.filter((payment) => {
+        const hasTicketInRaffle = client.tickets.some(
+          (ticket) =>
+            ticket.raffleId === raffleSummary.id &&
+            ticket.payment?.id === payment.id &&
+            ticket.payment?.status === "COMPLETED",
+        );
+        return hasTicketInRaffle;
+      });
+
+      const unlockedBoxes = paymentsForRaffle.reduce((total, payment) => {
+        return total + getBoxesFromTickets(payment.amount);
+      }, 0);
+
       if (unlockedBoxes <= 0) return [];
 
       const openedAwards = client.awards
         .filter((award) => award.type === "INSTANT_PRIZE" && award.raffle?.id === raffleSummary.id)
-        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+        .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
       return Array.from({ length: unlockedBoxes }, (_, index) => {
         const openedAward = openedAwards[index] ?? null;

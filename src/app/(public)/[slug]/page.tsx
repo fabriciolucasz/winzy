@@ -21,6 +21,11 @@ async function findTenantBySlugWithRetry(slug: string) {
       return await prisma.tenant.findUnique({
         where: { slug },
         include: {
+          subscription: {
+            select: {
+              status: true,
+            },
+          },
           owner: {
             select: {
               name: true,
@@ -58,6 +63,10 @@ export default async function Tenant({ params }: TenantProps) {
   const tenant = await findTenantBySlugWithRetry(slug);
 
   if (!tenant) {
+    notFound();
+  }
+
+  if (!tenant.subscription || tenant.subscription.status !== "ACTIVE") {
     notFound();
   }
 

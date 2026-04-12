@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "email:test": "tsx src/scripts/test-email.ts"
   },
   "dependencies": {
     "@prisma/client": "^7.5.0",

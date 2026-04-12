@@ -54,8 +54,8 @@ export async function POST(request: NextRequest) {
         },
         tenants: tenants.map(t => ({ id: t.id, name: t.name, slug: t.slug })),
       },
-      { status: 200 }
-    )
+      200
+    );
 
     response.cookies.set({
       name: getCookieName(),

@@ -195,7 +195,7 @@ export function Raffle() {
 
   useEffect(() => {
     async function fetchRanking() {
-      if (!tenant?.slug || !showCollaboratorRanking) {
+      if (!tenant?.slug || !raffle?.id || !showCollaboratorRanking) {
         setRankingList([]);
         setUserRankingPosition(null);
         return;

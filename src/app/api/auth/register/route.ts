@@ -1,6 +1,6 @@
 import prisma from "@/lib/database/prisma";
 import { ZodError } from "zod";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import bcrypt from "bcrypt";
 import { sendVerificationEmail } from "@/lib/auth/email";
 import { generateToken, getCookieName } from "@/lib/auth/jwt";
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
           name: user.name,
         }
       },
-      { status: 201 }
+      201
     );
 
     response.cookies.set({

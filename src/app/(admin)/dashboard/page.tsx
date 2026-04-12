@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import prisma from "@/lib/database/prisma";
 import { getAuthUser } from "@/lib/auth/mddleware";
 import { getActiveTenantCookieName } from "@/lib/auth/jwt";
-import { DashboardOverview } from "./_components/dashboard-overview";
+import { DashboardOverview } from "../_components/dashboard-overview";
 
 function monthLabel(date: Date): string {
   return new Intl.DateTimeFormat("pt-BR", { month: "short" }).format(date);

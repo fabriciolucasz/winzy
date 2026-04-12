@@ -1,18 +1,18 @@
 import { Suspense } from "react";
-import { Login } from "../login";
+import { Login } from "../login-form";
 import { getAuthUser } from "@/lib/auth/mddleware";
 import { redirect } from "next/navigation";
 
-export default async function SignInPage() {
+export default async function SignUpPage() {
   const authUser = await getAuthUser();
 
   if (authUser) {
-    redirect("/dashboard/organizations");
+    redirect("/dashboard");
   }
 
   return (
     <Suspense>
-      <Login mode="login" />
+      <Login mode="register" />
     </Suspense>
   )
 }

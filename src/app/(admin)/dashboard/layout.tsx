@@ -5,10 +5,10 @@ import { cookies } from "next/headers";
 import { getAuthUser } from "@/lib/auth/mddleware";
 import { getActiveTenantCookieName } from "@/lib/auth/jwt";
 import prisma from "@/lib/database/prisma";
-import { UserMenu } from "./_components/user-menu";
-import { MobileMenu } from "./_components/mobile-menu";
+import { UserMenu } from "../_components/user-menu";
+import { MobileMenu } from "../_components/mobile-menu";
 import { Logo } from "@/components/ui/logo";
-import { TenantSwitcher } from "./_components/tenant-switcher";
+import { TenantSwitcher } from "../_components/tenant-switcher";
 
 interface DashboardLayoutProps {
   children: ReactNode;

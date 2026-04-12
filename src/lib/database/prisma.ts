@@ -1,3 +1,4 @@
+
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "@prisma/client";
@@ -7,7 +8,9 @@ const globalForPrisma = globalThis as typeof globalThis & {
   pool?: Pool;
 };
 
-if (!process.env.DATABASE_URL) {
+const DATABASE_URL = process.env.DATABASE_URL;
+
+if (!DATABASE_URL) {
   throw new Error("DATABASE_URL não está definida.");
 }
 
@@ -26,7 +29,7 @@ const enableSsl = process.env.PG_SSL === "true";
 const pool =
   globalForPrisma.pool ??
   new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: DATABASE_URL,
     max: poolMax,
     idleTimeoutMillis,
     connectionTimeoutMillis,

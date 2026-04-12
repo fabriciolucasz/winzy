@@ -201,7 +201,7 @@ export function Raffle() {
         return;
       }
       try {
-        const res = await fetch(`/api/ranking/${tenant.slug}`);
+        const res = await fetch(`/api/ranking/${tenant.slug}?raffleId=${raffle.id}`);
         if (res.ok) {
           const data = (await res.json()) as RankingResponse;
           setRankingList(data.ranking || []);
@@ -212,7 +212,7 @@ export function Raffle() {
       }
     }
     fetchRanking();
-  }, [tenant?.slug, showCollaboratorRanking]);
+  }, [tenant?.slug, raffle?.id, showCollaboratorRanking]);
 
   const rankingPrizeByPosition = useMemo(() => {
     const first = typeof raffle?.collaboratorPrizeFirst === "number" && raffle.collaboratorPrizeFirst > 0

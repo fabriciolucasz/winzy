@@ -268,21 +268,22 @@ export const Product = () => {
               {highlights.map((item, index) => {
                 const Icon = item.icon as IconComponent;
                 return (
-                <motion.div
-                  key={item.title}
-                  className="liquid-glass rounded-xl p-4 text-center"
-                  whileHover={reduceMotion ? undefined : { y: -4, scale: 1.02 }}
-                  initial={reduceMotion ? false : { opacity: 0, y: 14 }}
-                  whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-60px" }}
-                  transition={{ duration: 0.36, delay: index * 0.06 }}
-                >
-                  <div className="mb-2 inline-flex rounded-lg border border-white/15 bg-[#0F0F13]/70 p-2">
-                    <Icon className="h-4 w-4 text-[#7C3AED]" />
-                  </div>
-                  <p className="text-xs font-medium text-slate-300">{item.title}</p>
-                </motion.div>
-              );})}
+                  <motion.div
+                    key={item.title}
+                    className="liquid-glass rounded-xl p-4 text-center"
+                    whileHover={reduceMotion ? undefined : { y: -4, scale: 1.02 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: 14 }}
+                    whileInView={reduceMotion ? undefined : { opacity: 1, y: 0 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.36, delay: index * 0.06 }}
+                  >
+                    <div className="mb-2 inline-flex rounded-lg border border-white/15 bg-[#0F0F13]/70 p-2">
+                      <Icon className="h-4 w-4 text-[#7C3AED]" />
+                    </div>
+                    <p className="text-xs font-medium text-slate-300">{item.title}</p>
+                  </motion.div>
+                );
+              })}
             </div>
           </motion.div>
         </section>
@@ -310,22 +311,23 @@ export const Product = () => {
               {services.map((service, index) => {
                 const Icon = service.icon as IconComponent;
                 return (
-                <motion.article
-                  key={service.title}
-                  className="liquid-glass group rounded-2xl p-8"
-                  whileHover={reduceMotion ? undefined : { y: -6 }}
-                  initial={reduceMotion ? false : { opacity: 0, y: 20, scale: 0.98 }}
-                  whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
-                  viewport={{ once: true, margin: "-60px" }}
-                  transition={{ duration: 0.4, delay: index * 0.08 }}
-                >
-                  <div className="mb-4 inline-flex rounded-2xl border border-white/15 bg-[#0F0F13]/70 p-3">
-                    <Icon className="h-5 w-5 text-[#2563EB]" />
-                  </div>
-                  <h3 className="text-xl font-medium mb-3 text-white">{service.title}</h3>
-                  <p className="text-sm text-slate-400 leading-relaxed">{service.description}</p>
-                </motion.article>
-              );})}
+                  <motion.article
+                    key={service.title}
+                    className="liquid-glass group rounded-2xl p-8"
+                    whileHover={reduceMotion ? undefined : { y: -6 }}
+                    initial={reduceMotion ? false : { opacity: 0, y: 20, scale: 0.98 }}
+                    whileInView={reduceMotion ? undefined : { opacity: 1, y: 0, scale: 1 }}
+                    viewport={{ once: true, margin: "-60px" }}
+                    transition={{ duration: 0.4, delay: index * 0.08 }}
+                  >
+                    <div className="mb-4 inline-flex rounded-2xl border border-white/15 bg-[#0F0F13]/70 p-3">
+                      <Icon className="h-5 w-5 text-[#2563EB]" />
+                    </div>
+                    <h3 className="text-xl font-medium mb-3 text-white">{service.title}</h3>
+                    <p className="text-sm text-slate-400 leading-relaxed">{service.description}</p>
+                  </motion.article>
+                );
+              })}
             </div>
           </div>
         </section>

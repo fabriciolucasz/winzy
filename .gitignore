@@ -43,5 +43,8 @@ next-env.d.ts
 /src/generated/prisma
 
 # local test files
+.vscode
 /src/lib/database/prisma/seed-legacy-clients.ts
+/src/lib/database/prisma/lock-legacy-mystery-boxes.ts
+/src/lib/database/prisma/schema.prisma.backup
 dump_database.sql

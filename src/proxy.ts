@@ -8,7 +8,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const host = req.headers.get("host")?.split(":")[0] || "";
+  const host = (req.headers.get("host")?.split(":")[0] || "").toLowerCase();
 
   const isDevelopment = process.env.NODE_ENV === "development";
   const rootDomain = isDevelopment ? "localhost" : (process.env.APP_ROOT_DOMAIN || "localhost");
@@ -33,7 +33,19 @@ export function proxy(req: NextRequest) {
   }
 
   if (subdomain && !reservedSubdomains.includes(subdomain)) {
-    const rewriteUrl = new URL(`/${subdomain}${pathname}`, req.url);
+    const [firstSegment] = pathname.split("/").filter(Boolean);
+
+    // Em subdomínio, a URL canônica não deve expor o slug no path.
+    // Ex.: tr-gustavin.localhost/login (e não /tr-gustavin/login).
+    if (firstSegment === subdomain) {
+      const normalizedUrl = req.nextUrl.clone();
+      const strippedPath = pathname.slice(`/${subdomain}`.length) || "/";
+      normalizedUrl.pathname = strippedPath.startsWith("/") ? strippedPath : `/${strippedPath}`;
+      return NextResponse.redirect(normalizedUrl);
+    }
+
+    const rewriteUrl = req.nextUrl.clone();
+    rewriteUrl.pathname = `/${subdomain}${pathname}`;
     return NextResponse.rewrite(rewriteUrl);
   }
 

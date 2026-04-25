@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/database/prisma";
+import { getClientAuthUser } from "@/lib/auth/mddleware";
 
 type PaymentPayload = {
   raffleId?: string;
@@ -266,6 +267,11 @@ async function createMercadoPagoPixPayment(args: {
 
 export async function POST(request: NextRequest) {
   try {
+    const authClient = await getClientAuthUser();
+    if (!authClient || !authClient.tenantId || !authClient.userId) {
+      return NextResponse.json({ success: false, error: "Nao autenticado." }, { status: 401 });
+    }
+
     const body = (await request.json()) as PaymentPayload;
     const raffleId = String(body.raffleId || "").trim();
     const ticketCount = Number(body.ticketCount || 0);
@@ -337,56 +343,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const customerName = String(body.customer?.name || "").trim();
-    const customerEmail = normalizeEmail(String(body.customer?.email || ""));
-    const customerCpf = onlyDigits(String(body.customer?.cpf || ""));
-    const customerPhone = String(body.customer?.phone || "").trim();
-
-    if (!customerName || !customerEmail || !customerCpf || !customerPhone) {
-      return NextResponse.json(
-        { success: false, error: "Informe nome, email, CPF e telefone para gerar o pagamento." },
-        { status: 400 },
-      );
+    if (raffle.tenantId !== authClient.tenantId) {
+      return NextResponse.json({ success: false, error: "Sessao invalida para esta organizacao." }, { status: 403 });
     }
 
-    if (customerCpf.length !== 11) {
-      return NextResponse.json({ success: false, error: "CPF invalido." }, { status: 400 });
-    }
-
-    const existingByEmail = await prisma.client.findFirst({
+    const client = await prisma.client.findFirst({
       where: {
-        tenantId: raffle.tenantId,
-        email: customerEmail,
+        id: authClient.userId,
+        tenantId: authClient.tenantId,
       },
     });
 
-    let client;
-    if (existingByEmail) {
-      if (existingByEmail.cpf !== customerCpf) {
-        return NextResponse.json(
-          { success: false, error: "O email informado pertence a outro CPF nesta organizacao." },
-          { status: 409 },
-        );
-      }
-
-      client = await prisma.client.update({
-        where: { id: existingByEmail.id },
-        data: {
-          name: customerName,
-          phone: customerPhone,
-        },
-      });
-    } else {
-      client = await prisma.client.create({
-        data: {
-          tenantId: raffle.tenantId,
-          name: customerName,
-          email: customerEmail,
-          cpf: customerCpf,
-          phone: customerPhone,
-        },
-      });
+    if (!client) {
+      return NextResponse.json({ success: false, error: "Cliente nao encontrado." }, { status: 404 });
     }
+
+    const customerEmail = client.email;
+    const customerName = client.name;
+    const customerCpf = client.cpf;
 
     const feePercentage = Math.min(Math.max(Number(process.env.PLATFORM_FEE_PERCENTAGE || 0), 0), 100);
     const platformFeeValue = Number(((expectedTotal * feePercentage) / 100).toFixed(2));

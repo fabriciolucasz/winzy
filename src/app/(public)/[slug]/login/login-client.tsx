@@ -23,6 +23,7 @@ type AuthResponse = {
 
 type ClientLoginViewProps = {
   slug: string;
+  returnTo?: string;
   tenant?: {
     name?: string;
     logoUrl?: string | null;
@@ -30,7 +31,7 @@ type ClientLoginViewProps = {
   };
 };
 
-export function ClientLoginView({ slug, tenant }: ClientLoginViewProps) {
+export function ClientLoginView({ slug, returnTo, tenant }: ClientLoginViewProps) {
   const router = useRouter();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -88,8 +89,8 @@ export function ClientLoginView({ slug, tenant }: ClientLoginViewProps) {
           return;
         }
 
-        setSuccess(mode === "register" ? "Cadastro concluido com sucesso." : "Login realizado com sucesso.");
-        router.replace(`/${slug}/profile`);
+        setSuccess(mode === "register" ? "Cadastro realizado! Redirecionando..." : "Login realizado! Redirecionando...");
+        router.replace(returnTo || `/${slug}`);
         router.refresh();
       } catch {
         setError("Erro de conexao. Tente novamente.");
@@ -122,8 +123,13 @@ export function ClientLoginView({ slug, tenant }: ClientLoginViewProps) {
           <div className="mb-5 border-b border-white/10 pb-4">
             <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Acesso do participante</p>
             <h1 className="mt-2 text-2xl font-bold uppercase text-zinc-100">
-              {mode === "register" ? "Criar conta na rifa" : "Entrar na sua conta"}
+              {mode === "register" ? "Crie sua conta gratuita" : "Acesse seus bilhetes"}
             </h1>
+            <p className="mt-1 text-sm text-slate-400">
+              {mode === "register"
+                ? "Cadastro gratuito. Participe agora e concorra a prêmios."
+                : "Entre e acompanhe todas as suas rifas em um só lugar."}
+            </p>
           </div>
 
           <div className="mb-4 inline-flex rounded-xl border border-slate-500/10 bg-slate-900/55 p-1">
@@ -219,9 +225,13 @@ export function ClientLoginView({ slug, tenant }: ClientLoginViewProps) {
               transition={{ delay: mode === "register" ? 0.45 : 0.35 }}
               type="submit"
               disabled={isSubmitting}
-              className="mt-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-[#0B1120] transition-colors hover:bg-emerald-400 disabled:opacity-70"
+              className="mt-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-[#0B1120] transition-colors hover:bg-emerald-400 disabled:opacity-70"
             >
-              {isSubmitting ? "Aguarde..." : mode === "register" ? "Criar conta" : "Entrar"}
+              {isSubmitting
+                ? "Aguarde..."
+                : mode === "register"
+                  ? "Criar conta e participar"
+                  : "Entrar e ver meus bilhetes"}
             </motion.button>
           </motion.form>
         </motion.section>

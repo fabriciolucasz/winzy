@@ -2,21 +2,24 @@
 
 import { motion } from "motion/react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { ChevronDown, LogOut, MoreVertical, Ticket, UserIcon } from "lucide-react";
+import { ChevronDown, LogOut, MoreVertical, UserIcon } from "lucide-react";
 import Image from "next/image";
 import { useApp } from "@/contexts";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { clearSession } from "@/lib/session";
 
 export function Header() {
   const router = useRouter();
+  const pathname = usePathname();
   const { tenant, user, setUser } = useApp();
   const isAuthenticated = Boolean(user?.email);
   const userName = user?.name?.trim() || "Guest";
   const profileHref = tenant?.slug ? `/${tenant.slug}/profile` : "/";
-  const loginHref = tenant?.slug ? `/${tenant.slug}/login` : "/";
+  const loginHref = tenant?.slug
+    ? `/${tenant.slug}/login?returnTo=${encodeURIComponent(pathname)}`
+    : "/";
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRootRef = useRef<HTMLDivElement | null>(null);
   const userMenuTriggerRef = useRef<HTMLButtonElement | null>(null);

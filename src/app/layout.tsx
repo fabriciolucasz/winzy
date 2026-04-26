@@ -15,6 +15,11 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Winzy | Prêmios e Sorteios",
   description: "Participe de sorteios e rifas incríveis na Winzy. Uma plataforma rápida, segura e transparente para você concorrer a grandes prêmios.",
+  icons: {
+    icon: "/winzy_logo.png",
+    shortcut: "/winzy_logo.png",
+    apple: "/winzy_logo.png",
+  },
 };
 
 export default function RootLayout({

@@ -124,7 +124,7 @@ export function Raffle() {
       timer = setTimeout(() => setCountdownToLogin(prev => prev - 1), 1000);
     } else if (authErrorModalOpen && countdownToLogin === 0) {
       setAuthErrorModalOpen(false);
-      window.location.href = `/${tenant?.slug || ''}/login`;
+      window.location.href = `/${tenant?.slug || ''}/login?returnTo=${encodeURIComponent(window.location.pathname)}`;
     }
     return () => clearTimeout(timer);
   }, [authErrorModalOpen, countdownToLogin, tenant?.slug]);
@@ -774,9 +774,9 @@ export function Raffle() {
           whileTap={{ scale: 0.98 }}
           onClick={handlePixPayment}
           disabled={isPaying}
-          className="cursor-pointer w-full items-center rounded-2xl bg-emerald-500 p-4 text-sm font-semibold font-bold uppercase tracking-widest text-[#0B1120] shadow-[0_4px_24px_rgba(16,185,129,0.25)] transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
+          className="cursor-pointer w-full items-center rounded-2xl bg-emerald-500 p-4 text-sm font-bold uppercase tracking-widest text-[#0B1120] shadow-[0_4px_24px_rgba(16,185,129,0.25)] transition-all hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isPaying ? "Gerando PIX..." : "Pagar com PIX"}
+          {isPaying ? "Gerando PIX..." : "Garantir meus bilhetes com PIX"}
         </motion.button>
 
         {checkoutError && (
@@ -800,21 +800,21 @@ export function Raffle() {
                 <CircleHelp size={24} className="text-red-400" />
               </div>
               <div>
-                <Dialog.Title className="text-lg font-bold text-white">Cadastro Incompleto</Dialog.Title>
+                <Dialog.Title className="text-lg font-bold text-white">Faça login para continuar</Dialog.Title>
                 <Dialog.Description className="text-sm text-slate-300 mt-2">
-                  Para concluir sua compra e pagar com PIX, você precisa estar logado com nome, email, CPF e telefone válidos.
+                  Para garantir seus bilhetes e pagar com PIX, você precisa estar logado. É rápido e gratuito!
                 </Dialog.Description>
               </div>
-              <p className="text-xs font-semibold text-red-300 mt-2">Redirecionando para o login em {countdownToLogin} segundos...</p>
+              <p className="text-xs font-semibold text-emerald-400 mt-2">Redirecionando em {countdownToLogin} segundos...</p>
               <button 
                 type="button"
                 onClick={() => {
                   setAuthErrorModalOpen(false);
-                  window.location.href = `/${tenant?.slug || ''}/login`;
+                  window.location.href = `/${tenant?.slug || ''}/login?returnTo=${encodeURIComponent(window.location.pathname)}`;
                 }}
-                className="cursor-pointer w-full rounded-xl bg-red-500 hover:bg-red-400 text-white font-bold py-3 mt-2 transition-colors"
+                className="cursor-pointer w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 text-[#0B1120] font-bold py-3 mt-2 transition-colors"
               >
-                Fazer Login Agora
+                Entrar agora e garantir meus bilhetes
               </button>
             </div>
           </Dialog.Content>

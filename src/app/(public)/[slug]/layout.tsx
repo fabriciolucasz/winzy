@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import prisma from "@/lib/database/prisma";
 
-const DEFAULT_TENANT_DESCRIPTION = "... Um branding a ser definido pra atrair cliente pra plataforma...";
+const DEFAULT_TENANT_DESCRIPTION = "Participe desta campanha e concorra a prêmios fantásticos. Garanta seus números e acompanhe os resultados com total segurança e transparência na Winzy.";
 
 export async function generateMetadata(
   { params }: { params: Promise<{ slug: string }> },
@@ -18,12 +18,12 @@ export async function generateMetadata(
     },
   });
 
-  const resolvedMetaTitle = tenant?.metaTitle?.trim() || tenant?.name || "InCherry";
+  const resolvedMetaTitle = tenant?.metaTitle?.trim() || tenant?.name || "Winzy";
   const resolvedDescription = tenant?.metaDescription?.trim() || DEFAULT_TENANT_DESCRIPTION;
   const resolvedFavicon = tenant?.favicon?.trim() || "/winzy_logo.png";
 
   return {
-    title: `InCherry | ${resolvedMetaTitle}`,
+    title: `Winzy | ${resolvedMetaTitle}`,
     description: resolvedDescription,
     icons: {
       icon: resolvedFavicon,

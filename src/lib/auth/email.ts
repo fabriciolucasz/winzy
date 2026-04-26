@@ -3,6 +3,7 @@ import type SMTPTransport from "nodemailer/lib/smtp-transport";
 import dns from "node:dns";
 import net from "node:net";
 import tls from "node:tls";
+import { verificationEmailTemplate, welcomeEmailTemplate, raffleWinnerEmailTemplate } from "./templates";
 
 function getNumberEnv(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -67,20 +68,6 @@ function getTransporter(): nodemailer.Transporter<SMTPTransport.SentMessageInfo>
   return cachedTransporter;
 }
 
-function baseEmailLayout(content: string): string {
-  return `
-    <div style="font-family:Segoe UI,Roboto,Arial,sans-serif;background:#0b0b0f;padding:24px;color:#e4e4e7;">
-      <div style="max-width:620px;margin:0 auto;border:1px solid rgba(148,163,184,.22);border-radius:16px;background:linear-gradient(145deg,rgba(15,15,19,.9),rgba(15,15,19,.72));overflow:hidden;">
-        <div style="padding:16px 20px;border-bottom:1px solid rgba(148,163,184,.16);">
-          <strong style="letter-spacing:.12em;font-size:12px;color:#93c5fd;">INCHERRY AWARDS</strong>
-        </div>
-        <div style="padding:22px 20px;line-height:1.55;font-size:15px;color:#e4e4e7;">
-          ${content}
-        </div>
-      </div>
-    </div>
-  `;
-}
 
 export async function verifyEmailConnection(): Promise<{ ok: boolean; message: string }> {
   if (!isSmtpConfigured()) {
@@ -103,21 +90,16 @@ export async function sendVerificationEmail(email: string, code: string): Promis
   }
 
   try {
+    const { subject, html } = verificationEmailTemplate(code);
     await getTransporter().sendMail({
       from: getFromAddress(),
       to: email,
-      subject: "Código de Verificação - InCherry Awards",
-      html: baseEmailLayout(`
-        <h2 style="margin:0 0 12px;font-size:22px;color:#ffffff;">Codigo de verificacao</h2>
-        <p style="margin:0 0 14px;">Use o codigo abaixo para continuar sua autenticacao:</p>
-        <div style="display:inline-block;padding:10px 14px;border-radius:10px;background:#111827;border:1px solid rgba(59,130,246,.35);font-size:20px;font-weight:700;letter-spacing:.08em;color:#bfdbfe;">
-          ${code}
-        </div>
-      `),
+      subject,
+      html,
     });
     return true;
   } catch (error) {
-    console.error("Erro ao enviar email:", error);
+    console.error("Erro ao enviar email de verificação:", error);
     return false;
   }
 }
@@ -129,19 +111,16 @@ export async function sendWelcomeEmail(email: string, name: string): Promise<boo
   }
 
   try {
+    const { subject, html } = welcomeEmailTemplate(name);
     await getTransporter().sendMail({
       from: getFromAddress(),
       to: email,
-      subject: "Bem-vindo ao InCherry Awards!",
-      html: baseEmailLayout(`
-        <h2 style="margin:0 0 12px;font-size:22px;color:#ffffff;">Bem-vindo, ${name}!</h2>
-        <p style="margin:0 0 10px;">Sua conta foi criada com sucesso.</p>
-        <p style="margin:0;">Agora voce ja pode acessar seus recursos e acompanhar suas rifas.</p>
-      `),
+      subject,
+      html,
     });
     return true;
   } catch (error) {
-    console.error("Erro ao enviar email:", error);
+    console.error("Erro ao enviar email de boas-vindas:", error);
     return false;
   }
 }
@@ -160,16 +139,12 @@ export async function sendRaffleWinnerEmail(params: {
   const { email, clientName, raffleName, ticketNumber } = params;
 
   try {
+    const { subject, html } = raffleWinnerEmailTemplate({ clientName, raffleName, ticketNumber });
     await getTransporter().sendMail({
       from: getFromAddress(),
       to: email,
-      subject: `Voce ganhou a rifa ${raffleName}!`,
-      html: baseEmailLayout(`
-        <h2 style="margin:0 0 12px;font-size:22px;color:#ffffff;">Parabens, ${clientName}!</h2>
-        <p style="margin:0 0 10px;">Voce foi sorteado na rifa <strong>${raffleName}</strong>.</p>
-        <p style="margin:0 0 10px;">Bilhete vencedor: <strong>${ticketNumber}</strong>.</p>
-        <p style="margin:0;">Nossa equipe entrara em contato com as proximas instrucoes.</p>
-      `),
+      subject,
+      html,
     });
     return true;
   } catch (error) {
